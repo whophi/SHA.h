@@ -1,0 +1,111 @@
+BasedOnStyle: LLVM
+# ---
+# Language: Cpp
+
+IndentWidth: 2
+LineEnding: LF
+ColumnLimit: 130
+
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: false
+  AlignCompound: true
+  PadOperators: true
+
+AlignConsecutiveBitFields:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: false
+  #AlignFunctionDeclarations: false
+  AlignFunctionPointers: true
+
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: false
+
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+  AlignCaseColons: false
+
+AlignEscapedNewlines: Left
+AlignAfterOpenBracket: AlwaysBreak
+# AlignArrayOfStructures: Left # BUG: Will apply to inline struct definition
+
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 1
+#  MaxEmptyLinesToKeep: 2
+
+AllowShortBlocksOnASingleLine: true
+# AllowShortCaseExpressionOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: true
+
+BinPackArguments: true
+BinPackParameters: true # BinPackParameters
+
+BitFieldColonSpacing: Both
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: false
+
+  AfterClass: false
+
+  AfterControlStatement: Never
+
+  AfterEnum: false
+
+  AfterFunction: true
+
+  AfterNamespace: true
+
+  AfterObjCDeclaration: false
+
+  AfterStruct: false
+
+  AfterUnion: false
+
+  AfterExternBlock: false
+
+  BeforeCatch: false
+
+  BeforeElse: false
+
+  BeforeLambdaBody: false
+
+  BeforeWhile: false
+
+  IndentBraces: false
+
+  SplitEmptyFunction: false
+
+  SplitEmptyRecord: true
+
+  SplitEmptyNamespace: false
+
+BreakStringLiterals: true
+
+IndentExternBlock: Indent
+
+IncludeBlocks: Preserve
+
+PointerAlignment: Left
+
+IndentCaseLabels: true
+
+Cpp11BracedListStyle: false
+SpaceBeforeCpp11BracedList: true
