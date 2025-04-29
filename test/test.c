@@ -2,7 +2,7 @@
 #include <time.h>
 
 #define SHA_2_IMPLEMENTATION
-#include "SHA-2.h"
+#include "../SHA-2.h"
 
 void endianCheckPrint()
 {
