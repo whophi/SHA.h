@@ -286,6 +286,8 @@ static_assert("SHA2_MEMCPY not defined without string.h");
 extern "C" {
 #endif
 
+  // TODO: Add function, that prints infos, such as if simd is used
+
   // Block Types
   typedef struct {
     union {
@@ -925,13 +927,14 @@ extern "C" {
 
       // Set start of next byte
       size_t byte_index_next = byte_index + 1;
-      if (ctx->bit_count == SHA2_BLOCK_SIZE(SHA1) && bits_in_data_byte >= missing_bit_count) {
+      if (ctx->bit_count >= SHA2_BLOCK_SIZE(SHA1)) {
         _sha1_hash_block(ctx, NULL);
         byte_index_next = 0;
       }
 
       if (added_bit_count < bits_in_data_byte) {
-        ctx->block.bytes[byte_index_next] = (byte & ~(0xFF >> bits_in_data_byte)) << missing_bit_count;
+        ctx->block.bytes[byte_index_next]  = (byte & ~(0xFF >> bits_in_data_byte)) << missing_bit_count;
+        ctx->bit_count                    += bits_in_data_byte - added_bit_count;
       }
       bit_count -= bits_in_data_byte;
     }
@@ -1275,13 +1278,14 @@ extern "C" {
 
       // Set start of next byte
       size_t byte_index_next = byte_index + 1;
-      if (ctx->bit_count == SHA2_BLOCK_SIZE(SHA2_256) && bits_in_data_byte >= missing_bit_count) {
+      if (ctx->bit_count >= SHA2_BLOCK_SIZE(SHA2_256)) {
         _sha2_256_hash_block(ctx, NULL);
         byte_index_next = 0;
       }
 
       if (added_bit_count < bits_in_data_byte) {
-        ctx->block.bytes[byte_index_next] = (byte & ~(0xFF >> bits_in_data_byte)) << missing_bit_count;
+        ctx->block.bytes[byte_index_next]  = (byte & ~(0xFF >> bits_in_data_byte)) << missing_bit_count;
+        ctx->bit_count                    += bits_in_data_byte - added_bit_count;
       }
       bit_count -= bits_in_data_byte;
     }
@@ -1421,15 +1425,17 @@ extern "C" {
       const uint8_t added_bit_count    = SHA2_MIN(missing_bit_count, bits_in_data_byte);
       ctx->bit_count                  += added_bit_count;
 
-      // Set start of next byte
+      // Hash if was last byte in block
       size_t byte_index_next = byte_index + 1;
-      if (byte_index + 1 < SHA2_BLOCK_SIZE(SHA2_512) / 8 && bits_in_data_byte > missing_bit_count) {
+      if (ctx->bit_count >= SHA2_BLOCK_SIZE(SHA2_512)) {
         _sha2_512_hash_block(ctx, NULL);
         byte_index_next = 0;
       }
 
+      // Set start of next byte
       if (added_bit_count < bits_in_data_byte) {
-        ctx->block.bytes[byte_index_next] = (byte & ~(0xFF >> bits_in_data_byte)) << missing_bit_count;
+        ctx->block.bytes[byte_index_next]  = (byte & ~(0xFF >> bits_in_data_byte)) << missing_bit_count;
+        ctx->bit_count                    += bits_in_data_byte - added_bit_count;
       }
       bit_count -= bits_in_data_byte;
     }
