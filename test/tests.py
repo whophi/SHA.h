@@ -1,11 +1,12 @@
 import subprocess
 
-test_algorithms = ['1', '224', '256', '384', '512', '512_224', '512_256']
 formats_per_test = ['ShortMsg', 'LongMsg']
+sha_sizes_1_2 = ['1', '224', '256', '384', '512', '512_224', '512_256']
+sha_sizes_3 = ['3_224', '3_256', '3_384', '3_512']
 
 
-def test_dir(dir: str):
-  for alg in test_algorithms:
+def test_dir(dir: str, sizes):
+  for alg in sizes:
     for format in formats_per_test:
       file = open(dir + 'SHA' + alg + format + '.rsp')
       while True:
@@ -31,5 +32,7 @@ def test_dir(dir: str):
           print('Success:', alg, format)
 
 
-test_dir('./data/nist/sha1_2_bits/')
-test_dir('./data/nist/sha1_2_bytes/')
+# test_dir('./data/nist/sha1_2_bits/', sha_sizes_1_2)
+# test_dir('./data/nist/sha1_2_bytes/', sha_sizes_1_2)
+test_dir('./data/nist/sha3_bits/', sha_sizes_3)
+test_dir('./data/nist/sha3_bytes/', sha_sizes_3)

@@ -14,6 +14,18 @@ void endianCheckPrint()
   }
 }
 
+static uint8_t reverse_bits_in_byte(uint8_t b)
+{
+  b = (b & 0b11110000) >> 4 | (b & 0b00001111) << 4;
+  b = (b & 0b11001100) >> 2 | (b & 0b00110011) << 2;
+  b = (b & 0b10101010) >> 1 | (b & 0b01010101) << 1;
+  return b;
+}
+static void sha3_reverse_data(uint8_t* d, unsigned int byte_count)
+{
+  for (unsigned int i = 0; i < byte_count; i++) { d[i] = reverse_bits_in_byte(d[i]); }
+}
+
 int main(int argc, char** argv)
 {
   //
@@ -47,48 +59,80 @@ int main(int argc, char** argv)
     sha1_reset(&ctx);
     sha1_append_bits(&ctx, msg_v, len);
     sha1_t hash = sha1_get_hash(&ctx);
-    printf("%s\n", sha1_to_string(hash, upper_case));
+    printf("%s\n", sha1_to_string(&hash, upper_case));
   } else if (strcmp(sha_size, "224") == 0) {
     sha2_256_ctx sha2_ctx;
     sha2_224_reset(&sha2_ctx);
     sha2_256_append_bits(&sha2_ctx, msg_v, len);
-    sha2_224_t hash = sha2_224_get_hash(&sha2_ctx);
-    printf("%s\n", sha2_224_to_string(hash, upper_case));
+    sha_224_t hash = sha2_224_get_hash(&sha2_ctx);
+    printf("%s\n", sha_224_to_string(&hash, upper_case));
   } else if (strcmp(sha_size, "256") == 0) {
     sha2_256_ctx sha2_ctx;
     sha2_256_reset(&sha2_ctx);
     sha2_256_append_bits(&sha2_ctx, msg_v, len);
-    sha2_256_t hash = sha2_256_get_hash(&sha2_ctx);
-    printf("%s\n", sha2_256_to_string(hash, upper_case));
+    sha_256_t hash = sha2_256_get_hash(&sha2_ctx);
+    printf("%s\n", sha_256_to_string(&hash, upper_case));
     // printf("%02x", *((uint8_t*)&hash.words[0]));
   } else if (strcmp(sha_size, "384") == 0) {
     sha2_512_ctx sha2_ctx;
     sha2_384_reset(&sha2_ctx);
     sha2_512_append_bits(&sha2_ctx, msg_v, len);
-    sha2_384_t hash = sha2_384_get_hash(&sha2_ctx);
-    printf("%s\n", sha2_384_to_string(hash, upper_case));
+    sha_384_t hash = sha2_384_get_hash(&sha2_ctx);
+    printf("%s\n", sha_384_to_string(&hash, upper_case));
   } else if (strcmp(sha_size, "512") == 0) {
     sha2_512_ctx sha2_ctx;
     sha2_512_reset(&sha2_ctx);
     sha2_512_append_bits(&sha2_ctx, msg_v, len);
-    sha2_512_t hash = sha2_512_get_hash(&sha2_ctx);
-    printf("%s\n", sha2_512_to_string(hash, upper_case));
+    sha_512_t hash = sha2_512_get_hash(&sha2_ctx);
+    printf("%s\n", sha_512_to_string(&hash, upper_case));
   } else if (strcmp(sha_size, "512_224") == 0) {
     sha2_512_ctx sha2_ctx;
     sha2_512_224_reset(&sha2_ctx);
     sha2_512_append_bits(&sha2_ctx, msg_v, len);
-    sha2_224_t hash = sha2_512_224_get_hash(&sha2_ctx);
-    printf("%s\n", sha2_224_to_string(hash, upper_case));
+    sha_224_t hash = sha2_512_224_get_hash(&sha2_ctx);
+    printf("%s\n", sha_224_to_string(&hash, upper_case));
   } else if (strcmp(sha_size, "512_256") == 0) {
     sha2_512_ctx sha2_ctx;
     sha2_512_256_reset(&sha2_ctx);
     sha2_512_append_bits(&sha2_ctx, msg_v, len);
-    sha2_256_t hash = sha2_512_256_get_hash(&sha2_ctx);
-    printf("%s\n", sha2_256_to_string(hash, upper_case));
+    sha_256_t hash = sha2_512_256_get_hash(&sha2_ctx);
+    printf("%s\n", sha_256_to_string(&hash, upper_case));
+  } else if (strcmp(sha_size, "3_224") == 0) {
+    sha3_reverse_data(msg_v, (len + 7) / 8);
+    sha3_ctx sha3_ctx;
+    sha3_224_reset(&sha3_ctx);
+    sha3_append_bits(&sha3_ctx, msg_v, len);
+    sha_224_t hash;
+    sha3_224_get_hash(&sha3_ctx, &hash);
+    printf("%s\n", sha_224_to_string(&hash, upper_case));
+  } else if (strcmp(sha_size, "3_256") == 0) {
+    sha3_reverse_data(msg_v, (len + 7) / 8);
+    sha3_ctx sha3_ctx;
+    sha3_256_reset(&sha3_ctx);
+    sha3_append_bits(&sha3_ctx, msg_v, len);
+    sha_256_t hash;
+    sha3_256_get_hash(&sha3_ctx, &hash);
+    printf("%s\n", sha_256_to_string(&hash, upper_case));
+  } else if (strcmp(sha_size, "3_384") == 0) {
+    sha3_reverse_data(msg_v, (len + 7) / 8);
+    sha3_ctx sha3_ctx;
+    sha3_384_reset(&sha3_ctx);
+    sha3_append_bits(&sha3_ctx, msg_v, len);
+    sha_384_t hash;
+    sha3_384_get_hash(&sha3_ctx, &hash);
+    printf("%s\n", sha_384_to_string(&hash, upper_case));
+  } else if (strcmp(sha_size, "3_512") == 0) {
+    sha3_reverse_data(msg_v, (len + 7) / 8);
+    sha3_ctx sha3_ctx;
+    sha3_512_reset(&sha3_ctx);
+    sha3_append_bits(&sha3_ctx, msg_v, len);
+    sha_512_t hash;
+    sha3_512_get_hash(&sha3_ctx, &hash);
+    printf("%s\n", sha_512_to_string(&hash, upper_case));
   } else {
     printf("Unknown sha size %s\n", sha_size);
   }
-  // sha2_256_t   hash_pow;
+  // sha_256_t   hash_pow;
   // sha2_256_ctx sha2_pow_ctx;
   // sha2_256_reset(&sha2_pow_ctx);
   // printf(" ");

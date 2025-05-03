@@ -26,10 +26,10 @@
 
     #define SHA2_NO_STRING_INCLUDE
       Prevents the import of <string.h>.
-      If this is defined, SHA2_MEMSET and SHA2_MEMCPY have to also be defined
+      If this is defined, SHA2_MEMSET and SHA_MEMCPY have to also be defined
 
     #define SHA2_MEMSET
-    #define SHA2_MEMCPY
+    #define SHA_MEMCPY
       Allows setting own functions for memory operations.
 
     #define SHA_NO_SIMD
@@ -52,7 +52,7 @@
       Allows setting the used type for a 32 and 64 bit word.
       Default is uint32_t and uint64_t;
 
-    #define SHA2_IS_BIG_ENDIAN
+    #define SHA_IS_BIG_ENDIAN
       Allows to specify a check for the endianess of the system.
       Can be an expression, evaluated at run time, or a constant.
 
@@ -107,16 +107,16 @@ int sha_assert_empty() { return 0; }
 #ifndef SHA2_MEMSET
 #define SHA2_MEMSET(dest, value, size) memset(dest, value, size)
 #endif // SHA2_MEMSET
-#ifndef SHA2_MEMCPY
-#define SHA2_MEMCPY(dest, src, size) memcpy(dest, src, size)
-#endif // SHA2_MEMCPY
+#ifndef SHA_MEMCPY
+#define SHA_MEMCPY(dest, src, size) memcpy(dest, src, size)
+#endif // SHA_MEMCPY
 #else  // SHA2_NO_STRING_INCLUDE
 #ifndef SHA2_MEMSET
 static_assert("SHA2_MEMSET not defined without string.h");
 #endif // SHA2_MEMSET
-#ifndef SHA2_MEMCPY
-static_assert("SHA2_MEMCPY not defined without string.h");
-#endif // SHA2_MEMCPY
+#ifndef SHA_MEMCPY
+static_assert("SHA_MEMCPY not defined without string.h");
+#endif // SHA_MEMCPY
 #endif // SHA2_NO_STRING_INCLUDE
 
 #ifndef SHA_NO_SIMD
@@ -178,7 +178,7 @@ static_assert("SHA2_MEMCPY not defined without string.h");
 #define SHA_WORD_TYPE_64              uint64_t
 #define __SHA2_WORD_TYPE(WS)          SHA_WORD_TYPE_##WS
 #define _SHA2_WORD_TYPE(WS)           __SHA2_WORD_TYPE(WS)
-#define SHA2_WORD_TYPE(SHA)           _SHA2_WORD_TYPE(SHA2_WORD_SIZE(SHA))
+#define SHA_WORD_TYPE(SHA)            _SHA2_WORD_TYPE(SHA2_WORD_SIZE(SHA))
 
 // --------------------------
 // Basic Operations
@@ -217,14 +217,14 @@ static_assert("SHA2_MEMCPY not defined without string.h");
 // --------------------------
 
 // Little- or Bigendian
-#ifndef SHA2_IS_BIG_ENDIAN
-#define SHA2_IS_BIG_ENDIAN \
-  (!(union {               \
-      uint16_t      u16;   \
-      unsigned char c;     \
-    }) { .u16 = 1 }        \
+#ifndef SHA_IS_BIG_ENDIAN
+#define SHA_IS_BIG_ENDIAN \
+  (!(union {              \
+      uint16_t      u16;  \
+      unsigned char c;    \
+    }) { .u16 = 1 }       \
         .c)
-#endif // SHA2_IS_BIG_ENDIAN
+#endif // SHA_IS_BIG_ENDIAN
 
 // (((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
 #define _SHA2_BYTE_SWAP_32(x)                                                             \
@@ -248,10 +248,10 @@ static_assert("SHA2_MEMCPY not defined without string.h");
 #define _SHA2_BYTE_SWAP_64(x)                 SHA2_OR(64, _SHA2_BYTE_SWAP_64_R(x), _SHA2_BYTE_SWAP_64_L(x))
 #define _SHA2_BYTE_SWAP(WS, x)                _SHA2_BYTE_SWAP_##WS(x)
 #define SHA2_BYTE_SWAP_WS(WS, x)              _SHA2_BYTE_SWAP(WS, x)
-#define SHA2_BYTE_SWAP(SHA_SIZE, x)           SHA2_BYTE_SWAP_WS(SHA2_WORD_SIZE(SHA_SIZE), x)
+#define SHA_BYTE_SWAP(SHA_SIZE, x)            SHA2_BYTE_SWAP_WS(SHA2_WORD_SIZE(SHA_SIZE), x)
 
-#define SHA2_BYTE_SWAP_IF_LITTLE(SHA_SIZE, x) (SHA2_IS_BIG_ENDIAN ? (x) : SHA2_BYTE_SWAP(SHA_SIZE, x))
-#define SHA2_BYTE_SWAP_IF_LITTLE_WS(WS, x)    (SHA2_IS_BIG_ENDIAN ? (x) : SHA2_BYTE_SWAP_WS(WS, x))
+#define SHA2_BYTE_SWAP_IF_LITTLE(SHA_SIZE, x) (SHA_IS_BIG_ENDIAN ? (x) : SHA_BYTE_SWAP(SHA_SIZE, x))
+#define SHA2_BYTE_SWAP_IF_LITTLE_WS(WS, x)    (SHA_IS_BIG_ENDIAN ? (x) : SHA2_BYTE_SWAP_WS(WS, x))
 
 // ---------------
 // Min/Max
@@ -292,7 +292,7 @@ extern "C" {
   typedef struct {
     union {
       uint8_t bytes[SHA2_BLOCK_SIZE(SHA2_256) / 8];
-      SHA2_WORD_TYPE(SHA2_256) words[SHA2_WORDS_IN_BLOCK(SHA2_256)];
+      SHA_WORD_TYPE(SHA2_256) words[SHA2_WORDS_IN_BLOCK(SHA2_256)];
       uint64_t sizes[SHA2_BLOCK_SIZE(SHA2_256) / 64];
     };
   } sha2_block_256_t;
@@ -300,41 +300,45 @@ extern "C" {
   typedef struct {
     union {
       uint8_t bytes[SHA2_BLOCK_SIZE(SHA2_512) / 8];
-      SHA2_WORD_TYPE(SHA2_512) words[SHA2_WORDS_IN_BLOCK(SHA2_512)];
+      SHA_WORD_TYPE(SHA2_512) words[SHA2_WORDS_IN_BLOCK(SHA2_512)];
     };
   } sha2_block_512_t;
 
   // Hash Types
-#define _SHA2_HASH_TYPE_NAME(SHA_SIZE) sha2_##SHA_SIZE##_t
-#define _SHA2_HASH_TYPE(SHA_SIZE)                                 \
-  typedef struct {                                                \
-    SHA2_WORD_TYPE(SHA_SIZE) words[SHA2_WORDS_IN_HASH(SHA_SIZE)]; \
+#define _SHA2_HASH_TYPE_NAME(SHA_SIZE) sha_##SHA_SIZE##_t
+#define _SHA2_HASH_TYPE(SHA_SIZE)                                \
+  typedef struct {                                               \
+    SHA_WORD_TYPE(SHA_SIZE) words[SHA2_WORDS_IN_HASH(SHA_SIZE)]; \
   } _SHA2_HASH_TYPE_NAME(SHA_SIZE)
 
+  // SHA 1
   typedef struct {
-    SHA2_WORD_TYPE(SHA1) words[SHA2_WORDS_IN_HASH(SHA1)];
+    SHA_WORD_TYPE(SHA1) words[SHA2_WORDS_IN_HASH(SHA1)];
   } sha1_t;
-
+  // SHA 2/3
   _SHA2_HASH_TYPE(SHA2_224);
   _SHA2_HASH_TYPE(SHA2_256);
   _SHA2_HASH_TYPE(SHA2_384);
   _SHA2_HASH_TYPE(SHA2_512);
 
   // Byte Types
-#define _SHA2_HASH_BYTE_TYPE_NAME(SHA_SIZE) sha2_##SHA_SIZE##_bytes_t
-#define _SHA2_HASH_BYTE_TYPE(SHA_SIZE)                            \
-  typedef struct {                                                \
-    SHA2_WORD_TYPE(SHA_SIZE) bytes[SHA2_WORDS_IN_HASH(SHA_SIZE)]; \
-  } _SHA2_HASH_BYTE_TYPE_NAME(SHA_SIZE)
-
+  // SHA 1
   typedef struct {
-    SHA2_WORD_TYPE(SHA1) bytes[SHA2_WORDS_IN_HASH(SHA1)];
+    uint8_t bytes[SHA2_HASH_SIZE(SHA1) / 8];
   } sha1_bytes_t;
-
-  _SHA2_HASH_BYTE_TYPE(SHA2_224);
-  _SHA2_HASH_BYTE_TYPE(SHA2_256);
-  _SHA2_HASH_BYTE_TYPE(SHA2_384);
-  _SHA2_HASH_BYTE_TYPE(SHA2_512);
+  // SHA 2/3
+  typedef struct {
+    uint8_t bytes[SHA2_HASH_SIZE(SHA2_224) / 8];
+  } sha_224_bytes_t;
+  typedef struct {
+    uint8_t bytes[SHA2_HASH_SIZE(SHA2_256) / 8];
+  } sha_256_bytes_t;
+  typedef struct {
+    uint8_t bytes[SHA2_HASH_SIZE(SHA2_384) / 8];
+  } sha_384_bytes_t;
+  typedef struct {
+    uint8_t bytes[SHA2_HASH_SIZE(SHA2_512) / 8];
+  } sha_512_bytes_t;
 
   // Contexts
   typedef struct {
@@ -348,7 +352,7 @@ extern "C" {
     sha2_block_256_t block;
     uint64_t         block_count;
     uint16_t         bit_count;
-    sha2_256_t       hash;
+    sha_256_t        hash;
   } sha2_256_ctx;
 
   typedef struct {
@@ -356,8 +360,26 @@ extern "C" {
     uint64_t         block_count_low;
     uint64_t         block_count_high;
     uint16_t         bit_count;
-    sha2_512_t       hash;
+    sha_512_t        hash;
   } sha2_512_ctx;
+
+  typedef struct {
+    union {
+      uint8_t  bytes[5 * 5 * sizeof(uint64_t)];
+      uint64_t words[5 * 5];
+    };
+  } sha3_state_t;
+  typedef struct {
+    uint8_t bytes[1600 / 8];
+  } sha3_block_t;
+
+  typedef struct {
+    uint16_t     d;
+    sha3_state_t state;
+    sha3_block_t pi;
+    uint16_t     r;
+    uint16_t     bit_count;
+  } sha3_ctx;
 
   // ---------------------
   // Reset Context
@@ -371,6 +393,11 @@ extern "C" {
   SHA_DEF void sha2_512_reset(sha2_512_ctx* ctx);
   SHA_DEF void sha2_512_224_reset(sha2_512_ctx* ctx);
   SHA_DEF void sha2_512_256_reset(sha2_512_ctx* ctx);
+  // SHA 3
+  SHA_DEF void sha3_224_reset(sha3_ctx* ctx);
+  SHA_DEF void sha3_256_reset(sha3_ctx* ctx);
+  SHA_DEF void sha3_384_reset(sha3_ctx* ctx);
+  SHA_DEF void sha3_512_reset(sha3_ctx* ctx);
 
   // -------------------------
   // Append
@@ -386,6 +413,10 @@ extern "C" {
   SHA_DEF void sha2_512_append_bytes(sha2_512_ctx* ctx, const uint8_t* data, uint64_t byte_count);
   SHA_DEF void sha2_512_append_bits(sha2_512_ctx* ctx, const uint8_t* data, uint64_t bit_count);
   SHA_DEF void sha2_512_append(sha2_512_ctx* ctx, const uint8_t* data, uint64_t bit_count);
+  // SHA 3
+  SHA_DEF void sha3_append_bytes(sha3_ctx* ctx, const uint8_t* data, uint64_t byte_count);
+  SHA_DEF void sha3_append_bits(sha3_ctx* ctx, const uint8_t* data, uint64_t bit_count);
+  SHA_DEF void sha3_append(sha3_ctx* ctx, const uint8_t* data, uint64_t bit_count);
 
   // -----------------------
   // Get Hash (and reset)
@@ -393,53 +424,64 @@ extern "C" {
   // SHA 1
   SHA_DEF sha1_t sha1_get_hash(sha1_ctx* ctx);
   // SHA 2
-  SHA_DEF sha2_224_t sha2_224_get_hash(sha2_256_ctx* ctx);
-  SHA_DEF sha2_256_t sha2_256_get_hash(sha2_256_ctx* ctx);
-  SHA_DEF sha2_384_t sha2_384_get_hash(sha2_512_ctx* ctx);
-  SHA_DEF sha2_512_t sha2_512_get_hash(sha2_512_ctx* ctx);
-  SHA_DEF sha2_224_t sha2_512_224_get_hash(sha2_512_ctx* ctx);
-  SHA_DEF sha2_256_t sha2_512_256_get_hash(sha2_512_ctx* ctx);
+  SHA_DEF sha_224_t sha2_224_get_hash(sha2_256_ctx* ctx);
+  SHA_DEF sha_256_t sha2_256_get_hash(sha2_256_ctx* ctx);
+  SHA_DEF sha_384_t sha2_384_get_hash(sha2_512_ctx* ctx);
+  SHA_DEF sha_512_t sha2_512_get_hash(sha2_512_ctx* ctx);
+  SHA_DEF sha_224_t sha2_512_224_get_hash(sha2_512_ctx* ctx);
+  SHA_DEF sha_256_t sha2_512_256_get_hash(sha2_512_ctx* ctx);
 
   // --------------------
   // Words to bytes
   // Convert the normal sha2_xxx_t containing words, to sha2_xxx_bytes_t containing bytes
   // --------------------
   // SHA 1
-  SHA_DEF sha1_bytes_t sha1_to_bytes(sha1_t h);
-  // SHA 2
-  SHA_DEF sha2_224_bytes_t sha2_224_to_bytes(sha2_224_t h);
-  SHA_DEF sha2_256_bytes_t sha2_256_to_bytes(sha2_256_t h);
-  SHA_DEF sha2_384_bytes_t sha2_384_to_bytes(sha2_384_t h);
-  SHA_DEF sha2_512_bytes_t sha2_512_to_bytes(sha2_512_t h);
+  SHA_DEF void sha1_to_bytes(sha1_t h, uint8_t* bytes_out);
+  // SHA 2/3
+  SHA_DEF void sha_224_to_bytes(sha_224_t h, uint8_t* bytes_out);
+  SHA_DEF void sha_256_to_bytes(sha_256_t h, uint8_t* bytes_out);
+  SHA_DEF void sha_384_to_bytes(sha_384_t h, uint8_t* bytes_out);
+  SHA_DEF void sha_512_to_bytes(sha_512_t h, uint8_t* bytes_out);
+
+  // ----------------
+  // Bytes to words
+  // ----------------
+  // SHA 1
+  SHA_DEF void sha1_from_bytes(uint8_t* bytes, sha1_t* hash_out);
+  // SHA 2/3
+  SHA_DEF void sha_224_from_bytes(uint8_t* bytes, sha_224_t* hash_out);
+  SHA_DEF void sha_256_from_bytes(uint8_t* bytes, sha_256_t* hash_out);
+  SHA_DEF void sha_384_from_bytes(uint8_t* bytes, sha_384_t* hash_out);
+  SHA_DEF void sha_512_from_bytes(uint8_t* bytes, sha_512_t* hash_out);
 
   // --------------------
   // Compare
   // --------------------
   // SHA 1
-  SHA_DEF bool sha1_is_equal(sha1_t a, sha1_t b);
+  SHA_DEF bool sha1_is_equal(const sha1_t* a, const sha1_t* b);
   // SHA 2
-  SHA_DEF bool sha2_224_is_equal(sha2_224_t a, sha2_224_t b);
-  SHA_DEF bool sha2_256_is_equal(sha2_256_t a, sha2_256_t b);
-  SHA_DEF bool sha2_384_is_equal(sha2_384_t a, sha2_384_t b);
-  SHA_DEF bool sha2_512_is_equal(sha2_512_t a, sha2_512_t b);
+  SHA_DEF bool sha_224_is_equal(const sha_224_t* a, const sha_224_t* b);
+  SHA_DEF bool sha_256_is_equal(const sha_256_t* a, const sha_256_t* b);
+  SHA_DEF bool sha_384_is_equal(const sha_384_t* a, const sha_384_t* b);
+  SHA_DEF bool sha_512_is_equal(const sha_512_t* a, const sha_512_t* b);
 
   // ----------------------
   // To String
   // Note: Not thread save (static buffer in fn)
   // ----------------------
   // SHA 1
-  SHA_DEF const char* sha1_to_string(sha1_t h, bool upper_case);
+  SHA_DEF const char* sha1_to_string(const sha1_t* h, bool upper_case);
   // SHA 2
-  SHA_DEF const char* sha2_224_to_string(sha2_224_t h, bool upper_case);
-  SHA_DEF const char* sha2_256_to_string(sha2_256_t h, bool upper_case);
-  SHA_DEF const char* sha2_384_to_string(sha2_384_t h, bool upper_case);
-  SHA_DEF const char* sha2_512_to_string(sha2_512_t h, bool upper_case);
+  SHA_DEF const char* sha_224_to_string(const sha_224_t* h, bool upper_case);
+  SHA_DEF const char* sha_256_to_string(const sha_256_t* h, bool upper_case);
+  SHA_DEF const char* sha_384_to_string(const sha_384_t* h, bool upper_case);
+  SHA_DEF const char* sha_512_to_string(const sha_512_t* h, bool upper_case);
 
   // ---------------------
   // Constants
   // ---------------------
 #ifdef SHA_2_IMPLEMENTATION
-  static SHA2_WORD_TYPE(SHA1) sha1_K(size_t t)
+  static SHA_WORD_TYPE(SHA1) sha1_K(size_t t)
   {
     if (t < 20) return 0x5a827999;
     else if (t < 40) return 0x6ed9eba1;
@@ -482,44 +524,44 @@ extern "C" {
 
   // Initial Hash Value
 #ifdef SHA_2_IMPLEMENTATION
-  static SHA2_WORD_TYPE(SHA1) SHA2_CONST_INITIAL_1[] = { 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0 };
+  static SHA_WORD_TYPE(SHA1) SHA2_CONST_INITIAL_1[] = { 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0 };
 #endif
 
 #ifdef SHA_2_IMPLEMENTATION
-  static SHA2_WORD_TYPE(SHA2_224) SHA2_CONST_INITIAL_224[] = {
+  static SHA_WORD_TYPE(SHA2_224) SHA2_CONST_INITIAL_224[] = {
     0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4,
   };
 #endif
 
 #ifdef SHA_2_IMPLEMENTATION
-  static SHA2_WORD_TYPE(SHA2_256) SHA2_CONST_INITIAL_256[] = {
+  static SHA_WORD_TYPE(SHA2_256) SHA2_CONST_INITIAL_256[] = {
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
   };
 #endif
 
 #ifdef SHA_2_IMPLEMENTATION
-  static SHA2_WORD_TYPE(SHA2_384) SHA2_CONST_INITIAL_384[] = {
+  static SHA_WORD_TYPE(SHA2_384) SHA2_CONST_INITIAL_384[] = {
     0xcbbb9d5dc1059ed8, 0x629a292a367cd507, 0x9159015a3070dd17, 0x152fecd8f70e5939,
     0x67332667ffc00b31, 0x8eb44a8768581511, 0xdb0c2e0d64f98fa7, 0x47b5481dbefa4fa4,
   };
 #endif
 
 #ifdef SHA_2_IMPLEMENTATION
-  static SHA2_WORD_TYPE(SHA2_512) SHA2_CONST_INITIAL_512[] = {
+  static SHA_WORD_TYPE(SHA2_512) SHA2_CONST_INITIAL_512[] = {
     0x6a09e667f3bcc908, 0xbb67ae8584caa73b, 0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
     0x510e527fade682d1, 0x9b05688c2b3e6c1f, 0x1f83d9abfb41bd6b, 0x5be0cd19137e2179,
   };
 #endif
 
 #ifdef SHA_2_IMPLEMENTATION
-  static SHA2_WORD_TYPE(SHA2_512_224) SHA2_CONST_INITIAL_512_224[] = {
+  static SHA_WORD_TYPE(SHA2_512_224) SHA2_CONST_INITIAL_512_224[] = {
     0x8C3D37C819544DA2, 0x73E1996689DCD4D6, 0x1DFAB7AE32FF9C82, 0x679DD514582F9FCF,
     0x0F6D2B697BD44DA8, 0x77E36F7304C48942, 0x3F9D85A86A1D36C8, 0x1112E6AD91D692A1,
   };
 #endif
 
 #ifdef SHA_2_IMPLEMENTATION
-  static SHA2_WORD_TYPE(SHA2_512_256) SHA2_CONST_INITIAL_512_256[] = {
+  static SHA_WORD_TYPE(SHA2_512_256) SHA2_CONST_INITIAL_512_256[] = {
     0x22312194FC2BF72C, 0x9F555FA3C84C64C2, 0x2393B86B6F53B151, 0x963877195940EABD,
     0x96283EE2A88EFFE3, 0xBE5E1E2553863992, 0x2B0199FC2C85B8AA, 0x0EB72DDC81C52CA2,
   };
@@ -541,6 +583,7 @@ extern "C" {
     }
     ctx->block_count = 0;
     ctx->bit_count   = 0;
+    // TODO: When removing this set, have to change |= in append_bits
     SHA2_MEMSET(ctx->block.bytes, 0, SHA2_BLOCK_SIZE(SHA2_224) / 8);
   }
   // SHA 2
@@ -602,6 +645,55 @@ extern "C" {
     ctx->bit_count        = 0;
     SHA2_MEMSET(ctx->block.bytes, 0, SHA2_BLOCK_SIZE(SHA2_512) / 8);
   }
+  // SHA 3
+  SHA_DEF void sha3_224_reset(sha3_ctx* ctx)
+  {
+    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    ctx->bit_count = 0;
+    ctx->d         = 224;
+    ctx->r         = 1600 - 448;
+  }
+  SHA_DEF void sha3_256_reset(sha3_ctx* ctx)
+  {
+    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    ctx->bit_count = 0;
+    ctx->d         = 256;
+    ctx->r         = 1600 - 512;
+  }
+  SHA_DEF void sha3_384_reset(sha3_ctx* ctx)
+  {
+    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    ctx->bit_count = 0;
+    ctx->d         = 384;
+    ctx->r         = 1600 - 768;
+  }
+  SHA_DEF void sha3_512_reset(sha3_ctx* ctx)
+  {
+    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    ctx->bit_count = 0;
+    ctx->d         = 512;
+    ctx->r         = 1600 - 1024;
+  }
+  SHA_DEF void sha3_shake128_reset(sha3_ctx* ctx, unsigned int hash_bit_count)
+  {
+    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    ctx->bit_count = 0;
+    ctx->d         = hash_bit_count;
+    ctx->r         = 1600 - 256;
+  }
+  SHA_DEF void sha3_shake256_reset(sha3_ctx* ctx, unsigned int hash_bit_count)
+  {
+    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    ctx->bit_count = 0;
+    ctx->d         = hash_bit_count;
+    ctx->r         = 1600 - 512;
+  }
 #endif // SHA_2_IMPLEMENTATION
 
 // ---------------------
@@ -611,28 +703,28 @@ extern "C" {
   // SHA 1
   static void _sha1_hash_block_base(sha1_ctx* ctx, sha2_block_256_t* block_optional)
   {
-    static SHA2_WORD_TYPE(SHA1) W[80];
+    static SHA_WORD_TYPE(SHA1) W[80];
     sha2_block_256_t* block = block_optional == NULL ? &ctx->block : block_optional;
 
     {
       // Init W state
       for (size_t t = 0; t < 16; t++) { W[t] = SHA2_BYTE_SWAP_IF_LITTLE(SHA1, block->words[t]); }
       for (size_t t = 16; t < 80; t++) {
-        SHA2_WORD_TYPE(SHA1) xor1 = SHA2_XOR(SHA2_WORD_SIZE(SHA1), W[t - 3], W[t - 8]);
-        SHA2_WORD_TYPE(SHA1) xor2 = SHA2_XOR(SHA2_WORD_SIZE(SHA1), W[t - 14], W[t - 16]);
-        xor1                      = SHA2_XOR(SHA2_WORD_SIZE(SHA1), xor1, xor2);
-        W[t]                      = SHA2_ROTL(SHA2_WORD_SIZE(SHA1), xor1, 1);
+        SHA_WORD_TYPE(SHA1) xor1 = SHA2_XOR(SHA2_WORD_SIZE(SHA1), W[t - 3], W[t - 8]);
+        SHA_WORD_TYPE(SHA1) xor2 = SHA2_XOR(SHA2_WORD_SIZE(SHA1), W[t - 14], W[t - 16]);
+        xor1                     = SHA2_XOR(SHA2_WORD_SIZE(SHA1), xor1, xor2);
+        W[t]                     = SHA2_ROTL(SHA2_WORD_SIZE(SHA1), xor1, 1);
       }
     }
 
-    SHA2_WORD_TYPE(SHA1) a, b, c, d, e;
+    SHA_WORD_TYPE(SHA1) a, b, c, d, e;
     {
       (a = ctx->hash.words[0], b = ctx->hash.words[1], c = ctx->hash.words[2]);
       (d = ctx->hash.words[3], e = ctx->hash.words[4]);
     }
 
     for (size_t t = 0; t < 80; t++) {
-      const SHA2_WORD_TYPE(SHA1) T = SHA2_ROTL(SHA2_WORD_SIZE(SHA1), a, 5) + SHA1_F(t, b, c, d) + e + sha1_K(t) + W[t];
+      const SHA_WORD_TYPE(SHA1) T = SHA2_ROTL(SHA2_WORD_SIZE(SHA1), a, 5) + SHA1_F(t, b, c, d) + e + sha1_K(t) + W[t];
       (e = d, d = c, c = SHA2_ROTL(SHA2_WORD_SIZE(SHA1), b, 30), b = a, a = T);
     }
 
@@ -655,7 +747,7 @@ extern "C" {
     ABCD = _mm_set_epi32(hash.words[0], hash.words[1], hash.words[2], hash.words[3]);
     E0   = _mm_set_epi32(hash.words[4], 0, 0, 0); // 4 3 2 1 -> 1 2 3 4
     MASK = _mm_set_epi64x(0x0001020304050607ULL, 0x08090a0b0c0d0e0fULL);
-    if (SHA2_IS_BIG_ENDIAN) MASK = _mm_set_epi64x(0x0f0e0d0c0b0a0908ULL, 0x0706050403020100ULL);
+    if (SHA_IS_BIG_ENDIAN) MASK = _mm_set_epi64x(0x0f0e0d0c0b0a0908ULL, 0x0706050403020100ULL);
 
     // Save current hash
     ABCD_SAVE = ABCD;
@@ -850,7 +942,7 @@ extern "C" {
     const size_t byte_index     = bits_in_block / 8;
     const size_t byte_bit_index = bits_in_block - (byte_index * 8);
     uint8_t*     bytes          = ctx->block.bytes;
-    if (SHA2_IS_BIG_ENDIAN) {
+    if (SHA_IS_BIG_ENDIAN) {
       const uint8_t null_mask = 0xFF >> (8 - byte_bit_index);
       const uint8_t set_mask  = 0b00000001 << byte_bit_index;
       bytes[byte_index]       = (bytes[byte_index] & null_mask) | set_mask;
@@ -881,7 +973,7 @@ extern "C" {
     if (ctx->bit_count > 0) {
       const size_t missing_byte_count = (SHA2_BLOCK_SIZE(SHA1) - ctx->bit_count) / 8;
       const size_t copy_byte_count    = SHA2_MIN(missing_byte_count, byte_count);
-      SHA2_MEMCPY(ctx->block.bytes + (ctx->bit_count / 8), data, copy_byte_count);
+      SHA_MEMCPY(ctx->block.bytes + (ctx->bit_count / 8), data, copy_byte_count);
       data           += copy_byte_count;
       byte_count     -= copy_byte_count;
       ctx->bit_count += copy_byte_count * 8;
@@ -899,7 +991,7 @@ extern "C" {
 
     // Set rest
     if (byte_count > 0) {
-      SHA2_MEMCPY(ctx->block.bytes, data, byte_count);
+      SHA_MEMCPY(ctx->block.bytes, data, byte_count);
       ctx->bit_count += byte_count * 8;
     }
   }
@@ -942,34 +1034,54 @@ extern "C" {
   SHA_DEF void sha1_append(sha1_ctx* ctx, const uint8_t* data, uint64_t bit_count) { sha1_append_bits(ctx, data, bit_count); }
 
   // SHA 2
+  static void _sha2_print_m128i(__m128i v)
+  {
+    printf("%02x ", _mm_extract_epi8(v, 0));
+    printf("%02x ", _mm_extract_epi8(v, 1));
+    printf("%02x ", _mm_extract_epi8(v, 2));
+    printf("%02x ", _mm_extract_epi8(v, 3));
+    printf("%02x ", _mm_extract_epi8(v, 4));
+    printf("%02x ", _mm_extract_epi8(v, 5));
+    printf("%02x ", _mm_extract_epi8(v, 6));
+    printf("%02x ", _mm_extract_epi8(v, 7));
+    printf("%02x ", _mm_extract_epi8(v, 8));
+    printf("%02x ", _mm_extract_epi8(v, 9));
+    printf("%02x ", _mm_extract_epi8(v, 10));
+    printf("%02x ", _mm_extract_epi8(v, 11));
+    printf("%02x ", _mm_extract_epi8(v, 12));
+    printf("%02x ", _mm_extract_epi8(v, 13));
+    printf("%02x ", _mm_extract_epi8(v, 14));
+    printf("%02x ", _mm_extract_epi8(v, 15));
+    printf("\n");
+  }
   static void _sha2_256_hash_block_base(sha2_256_ctx* ctx, sha2_block_256_t* block_optional)
   {
-    static SHA2_WORD_TYPE(SHA2_256) W[64];
+    static SHA_WORD_TYPE(SHA2_256) W[64];
     sha2_block_256_t* block = block_optional == NULL ? &ctx->block : block_optional;
 
     {
       // Init W state
       for (size_t t = 0; t < 16; t++) { W[t] = SHA2_BYTE_SWAP_IF_LITTLE(SHA2_256, block->words[t]); }
       for (size_t t = 16; t < 64; t++) {
-        const SHA2_WORD_TYPE(SHA2_256) sigma_1 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_256), W[t - 2], 17, 19, 10);
-        const SHA2_WORD_TYPE(SHA2_256) sigma_0 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_256), W[t - 15], 7, 18, 3);
-        W[t]                                   = sigma_1 + W[t - 7] + sigma_0 + W[t - 16];
+        const SHA_WORD_TYPE(SHA2_256) sigma_1 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_256), W[t - 2], 17, 19, 10);
+        const SHA_WORD_TYPE(SHA2_256) sigma_0 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_256), W[t - 15], 7, 18, 3);
+        W[t]                                  = sigma_1 + W[t - 7] + sigma_0 + W[t - 16];
       }
     }
 
-    SHA2_WORD_TYPE(SHA2_256) a, b, c, d, e, f, g, h;
+    SHA_WORD_TYPE(SHA2_256) a, b, c, d, e, f, g, h;
     {
       (a = ctx->hash.words[0], b = ctx->hash.words[1], c = ctx->hash.words[2], d = ctx->hash.words[3]);
       (e = ctx->hash.words[4], f = ctx->hash.words[5], g = ctx->hash.words[6], h = ctx->hash.words[7]);
     }
 
     for (size_t t = 0; t < 64; t++) {
-      const SHA2_WORD_TYPE(SHA2_256) sigma_1 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_256), e, 6, 11, 25);
-      const SHA2_WORD_TYPE(SHA2_256) sigma_0 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_256), a, 2, 13, 22);
-      const SHA2_WORD_TYPE(SHA2_256) ch      = SHA2_CH(SHA2_WORD_SIZE(SHA2_256), e, f, g);
-      const SHA2_WORD_TYPE(SHA2_256) maj     = SHA2_MAJ(SHA2_WORD_SIZE(SHA2_256), a, b, c);
-      const SHA2_WORD_TYPE(SHA2_256) T1      = h + sigma_1 + ch + SHA2_CONST_224_256[t] + W[t];
-      const SHA2_WORD_TYPE(SHA2_256) T2      = sigma_0 + maj;
+      const SHA_WORD_TYPE(SHA2_256) sigma_1 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_256), e, 6, 11, 25);
+      const SHA_WORD_TYPE(SHA2_256) sigma_0 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_256), a, 2, 13, 22);
+      const SHA_WORD_TYPE(SHA2_256) ch      = SHA2_CH(SHA2_WORD_SIZE(SHA2_256), e, f, g);
+      const SHA_WORD_TYPE(SHA2_256) maj     = SHA2_MAJ(SHA2_WORD_SIZE(SHA2_256), a, b, c);
+      const SHA_WORD_TYPE(SHA2_256) T1      = h + sigma_1 + ch + SHA2_CONST_224_256[t] + W[t];
+      const SHA_WORD_TYPE(SHA2_256) T2      = sigma_0 + maj;
       (h = g, g = f, f = e, e = d + T1, d = c, c = b, b = a, a = T1 + T2);
     }
 
@@ -1002,7 +1114,7 @@ extern "C" {
 
     // MASK = _mm_set_epi64x(0x0001020304050607ULL, 0x08090a0b0c0d0e0fULL);
     MASK = _mm_set_epi64x(0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
-    if (SHA2_IS_BIG_ENDIAN) MASK = _mm_set_epi64x(0x0f0e0d0c0b0a0908ULL, 0x0706050403020100ULL);
+    if (SHA_IS_BIG_ENDIAN) MASK = _mm_set_epi64x(0x0f0e0d0c0b0a0908ULL, 0x0706050403020100ULL);
 
     // Save current hash
     ABEF_SAVE = ABEF;
@@ -1200,7 +1312,7 @@ extern "C" {
     const size_t byte_index     = bits_in_block / 8;
     const size_t byte_bit_index = bits_in_block - (byte_index * 8);
     uint8_t*     bytes          = ctx->block.bytes;
-    if (SHA2_IS_BIG_ENDIAN) {
+    if (SHA_IS_BIG_ENDIAN) {
       const uint8_t null_mask = 0xFF >> (8 - byte_bit_index);
       const uint8_t set_mask  = 0b00000001 << byte_bit_index;
       bytes[byte_index]       = (bytes[byte_index] & null_mask) | set_mask;
@@ -1231,7 +1343,7 @@ extern "C" {
     if (ctx->bit_count > 0) {
       const size_t missing_byte_count = (SHA2_BLOCK_SIZE(SHA2_256) - ctx->bit_count) / 8;
       const size_t copy_byte_count    = SHA2_MIN(missing_byte_count, byte_count);
-      SHA2_MEMCPY(ctx->block.bytes + (ctx->bit_count / 8), data, copy_byte_count);
+      SHA_MEMCPY(ctx->block.bytes + (ctx->bit_count / 8), data, copy_byte_count);
       data           += copy_byte_count;
       byte_count     -= copy_byte_count;
       ctx->bit_count += copy_byte_count * 8;
@@ -1241,7 +1353,7 @@ extern "C" {
     // Do full blocks
     const uint8_t bytes_in_block = SHA2_BLOCK_SIZE(SHA2_256) / 8;
     while (byte_count >= bytes_in_block) {
-      // SHA2_MEMCPY(ctx->block.bytes, data, bytes_in_block);
+      // SHA_MEMCPY(ctx->block.bytes, data, bytes_in_block);
       ctx->bit_count = SHA2_BLOCK_SIZE(SHA2_256);
       _sha2_256_hash_block(ctx, (sha2_block_256_t*)data);
       data       += bytes_in_block;
@@ -1250,7 +1362,7 @@ extern "C" {
 
     // Set rest
     if (byte_count > 0) {
-      SHA2_MEMCPY(ctx->block.bytes, data, byte_count);
+      SHA_MEMCPY(ctx->block.bytes, data, byte_count);
       ctx->bit_count += byte_count * 8;
     }
   }
@@ -1297,32 +1409,32 @@ extern "C" {
 
   static void _sha2_512_hash_block(sha2_512_ctx* ctx, sha2_block_512_t* block_optional)
   {
-    static SHA2_WORD_TYPE(SHA2_512) W[80];
+    static SHA_WORD_TYPE(SHA2_512) W[80];
     sha2_block_512_t* block = block_optional == NULL ? &ctx->block : block_optional;
 
     {
       // Init W state
       for (size_t t = 0; t < 16; t++) { W[t] = SHA2_BYTE_SWAP_IF_LITTLE(SHA2_512, block->words[t]); }
       for (size_t t = 16; t < 80; t++) {
-        const SHA2_WORD_TYPE(SHA2_512) sigma_1 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_512), W[t - 2], 19, 61, 6);
-        const SHA2_WORD_TYPE(SHA2_512) sigma_0 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_512), W[t - 15], 1, 8, 7);
-        W[t]                                   = sigma_1 + W[t - 7] + sigma_0 + W[t - 16];
+        const SHA_WORD_TYPE(SHA2_512) sigma_1 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_512), W[t - 2], 19, 61, 6);
+        const SHA_WORD_TYPE(SHA2_512) sigma_0 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_512), W[t - 15], 1, 8, 7);
+        W[t]                                  = sigma_1 + W[t - 7] + sigma_0 + W[t - 16];
       }
     }
 
-    SHA2_WORD_TYPE(SHA2_512) a, b, c, d, e, f, g, h;
+    SHA_WORD_TYPE(SHA2_512) a, b, c, d, e, f, g, h;
     {
       (a = ctx->hash.words[0], b = ctx->hash.words[1], c = ctx->hash.words[2], d = ctx->hash.words[3]);
       (e = ctx->hash.words[4], f = ctx->hash.words[5], g = ctx->hash.words[6], h = ctx->hash.words[7]);
     }
 
     for (size_t t = 0; t < 80; t++) {
-      const SHA2_WORD_TYPE(SHA2_512) sigma_1 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_512), e, 14, 18, 41);
-      const SHA2_WORD_TYPE(SHA2_512) sigma_0 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_512), a, 28, 34, 39);
-      const SHA2_WORD_TYPE(SHA2_512) ch      = SHA2_CH(SHA2_WORD_SIZE(SHA2_512), e, f, g);
-      const SHA2_WORD_TYPE(SHA2_512) maj     = SHA2_MAJ(SHA2_WORD_SIZE(SHA2_512), a, b, c);
-      const SHA2_WORD_TYPE(SHA2_512) T1      = h + sigma_1 + ch + SHA2_CONST_384_512[t] + W[t];
-      const SHA2_WORD_TYPE(SHA2_512) T2      = sigma_0 + maj;
+      const SHA_WORD_TYPE(SHA2_512) sigma_1 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_512), e, 14, 18, 41);
+      const SHA_WORD_TYPE(SHA2_512) sigma_0 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_512), a, 28, 34, 39);
+      const SHA_WORD_TYPE(SHA2_512) ch      = SHA2_CH(SHA2_WORD_SIZE(SHA2_512), e, f, g);
+      const SHA_WORD_TYPE(SHA2_512) maj     = SHA2_MAJ(SHA2_WORD_SIZE(SHA2_512), a, b, c);
+      const SHA_WORD_TYPE(SHA2_512) T1      = h + sigma_1 + ch + SHA2_CONST_384_512[t] + W[t];
+      const SHA_WORD_TYPE(SHA2_512) T2      = sigma_0 + maj;
       (h = g, g = f, f = e, e = d + T1, d = c, c = b, b = a, a = T1 + T2);
     }
 
@@ -1349,7 +1461,7 @@ extern "C" {
     const size_t byte_index     = bits_in_block / 8;
     const size_t byte_bit_index = bits_in_block - (byte_index * 8);
     uint8_t*     bytes          = ctx->block.bytes;
-    if (SHA2_IS_BIG_ENDIAN) {
+    if (SHA_IS_BIG_ENDIAN) {
       const uint8_t null_mask = 0xFF >> (8 - byte_bit_index);
       const uint8_t set_mask  = 0b00000001 << byte_bit_index;
       bytes[byte_index]       = (bytes[byte_index] & null_mask) | set_mask;
@@ -1381,7 +1493,7 @@ extern "C" {
     if (ctx->bit_count > 0) {
       const size_t missing_byte_count = (SHA2_BLOCK_SIZE(SHA2_512) - ctx->bit_count) / 8;
       const size_t copy_byte_count    = SHA2_MIN(missing_byte_count, byte_count);
-      SHA2_MEMCPY(ctx->block.bytes + (ctx->bit_count / 8), data, copy_byte_count);
+      SHA_MEMCPY(ctx->block.bytes + (ctx->bit_count / 8), data, copy_byte_count);
       data           += copy_byte_count;
       byte_count     -= copy_byte_count;
       ctx->bit_count += copy_byte_count * 8;
@@ -1399,12 +1511,13 @@ extern "C" {
 
     // Set rest
     if (byte_count > 0) {
-      SHA2_MEMCPY(ctx->block.bytes, data, byte_count);
+      SHA_MEMCPY(ctx->block.bytes, data, byte_count);
       ctx->bit_count += byte_count * 8;
     }
   }
   SHA_DEF void sha2_512_append_bits(sha2_512_ctx* ctx, const uint8_t* data, uint64_t bit_count)
   {
+    // Use append bytes for as many bytes as possible
     if (ctx->bit_count % 8 == 0 && bit_count > 8) {
       const uint64_t byte_count = bit_count / 8;
       sha2_512_append_bytes(ctx, data, byte_count);
@@ -1444,6 +1557,234 @@ extern "C" {
   {
     sha2_512_append_bits(ctx, data, bit_count);
   }
+
+// SHA3
+#define SHA3_BLOCK_SIZE             1600
+#define SHA3_b1600_W                64
+#define SHA3_b1600_L                6
+#define SHA3_STATE_TO_SA(str, x, y) (((uint64_t*)str)[(5 * y + x)]) // S[w(5y+x)+z]
+
+#define _SHA_MOD_32(x, n)           (((SHA_WORD_TYPE_32)(x) % (n) + (n)) % (n))
+#define _SHA_MOD_64(x, n)           (((SHA_WORD_TYPE_64)(x) % (n) + (n)) % (n))
+#define _SHA_MOD(WS, x, n)          _SHA_MOD_##WS(x, n)
+#define SHA_MOD(WS, x, n)           _SHA_MOD(WS, x, n)
+
+  static void sha3_print_state(sha3_ctx* ctx, int round_index, const char* str)
+  {
+    printf("After round %u: %s\n", round_index, str);
+    for (unsigned int i = 0; i < sizeof(ctx->state); i++) { printf("%02x ", ctx->state.bytes[i]); }
+    printf("\n");
+  }
+
+  static void sha3_b1600_theta(sha3_ctx* ctx)
+  {
+    uint8_t* s = ctx->state.bytes;
+    uint64_t C[5];
+    for (unsigned int x = 0; x < 5; x++) {
+      C[x] = SHA2_XOR(64, SHA3_STATE_TO_SA(s, x, 0), SHA3_STATE_TO_SA(s, x, 1));
+      C[x] = SHA2_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 2));
+      C[x] = SHA2_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 3));
+      C[x] = SHA2_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 4));
+    }
+
+    // uint64_t D[5];
+    for (unsigned int x = 0; x < 5; x++) {
+      uint64_t d_x = SHA2_ROTL(64, C[(x + 1) % 5], 1);
+      d_x          = SHA2_XOR(64, C[(x + 4) % 5], d_x); // (x + 4) % 5 = (x - 1) mod 5
+
+      for (unsigned int y = 0; y < 5; y++) { SHA3_STATE_TO_SA(s, x, y) = SHA2_XOR(64, SHA3_STATE_TO_SA(s, x, y), d_x); }
+      // sha3_print_state(ctx, 0, "Theta:C");
+    }
+  }
+  static void sha3_b1600_rho(sha3_ctx* ctx)
+  {
+    uint8_t*     bytes = ctx->state.bytes;
+    unsigned int x, y, ty;
+    x = 1;
+    y = 0;
+    for (unsigned int t = 0; t < 24; t++) {
+      unsigned int n = (((t + 1) * (t + 2)) / 2) % 64;
+      // printf("n=%u, x=%u, y=%u\n", n, x, y);
+      SHA3_STATE_TO_SA(bytes, x, y) = SHA2_ROTL(64, SHA3_STATE_TO_SA(bytes, x, y), n);
+      //
+      ty = y;
+      y  = (2 * x + 3 * y) % 5;
+      x  = ty;
+    }
+  }
+  static void sha3_b1600_pi(sha3_ctx* ctx)
+  {
+    sha3_state_t s_copy = ctx->state; // TODO: Swapping buffer
+    uint8_t*     bytes  = ctx->state.bytes;
+    for (unsigned int x = 0; x < 5; x++) {
+      for (unsigned int y = 0; y < 5; y++) {
+        unsigned int xn               = (x + 3 * y) % 5;
+        SHA3_STATE_TO_SA(bytes, x, y) = SHA3_STATE_TO_SA(s_copy.bytes, xn, x);
+      }
+    }
+  }
+  static void sha3_b1600_chi(sha3_ctx* ctx)
+  {
+    sha3_state_t s_copy = ctx->state;
+    uint8_t*     bytes  = ctx->state.bytes;
+    for (unsigned int y = 0; y < 5; y++) {
+      for (unsigned int x = 0; x < 5; x++) {
+        uint64_t res                  = SHA2_NOT(64, SHA3_STATE_TO_SA(s_copy.bytes, (x + 1) % 5, y)); // XOR with 1 equals not
+        res                           = SHA2_AND(64, res, SHA3_STATE_TO_SA(s_copy.bytes, (x + 2) % 5, y));
+        SHA3_STATE_TO_SA(bytes, x, y) = SHA2_XOR(64, SHA3_STATE_TO_SA(s_copy.bytes, x, y), res);
+      }
+    }
+  }
+  static void sha3_b1600_iota(sha3_ctx* ctx, uint64_t round_index)
+  {
+    /* Round constants */
+    static const uint64_t RC[24] = {
+      0x0000000000000001, 0x0000000000008082, 0x800000000000808a, 0x8000000080008000, 0x000000000000808b, 0x0000000080000001,
+      0x8000000080008081, 0x8000000000008009, 0x000000000000008a, 0x0000000000000088, 0x0000000080008009, 0x000000008000000a,
+      0x000000008000808b, 0x800000000000008b, 0x8000000000008089, 0x8000000000008003, 0x8000000000008002, 0x8000000000000080,
+      0x000000000000800a, 0x800000008000000a, 0x8000000080008081, 0x8000000000008080, 0x0000000080000001, 0x8000000080008008,
+    };
+    SHA3_STATE_TO_SA(ctx->state.bytes, 0, 0) = SHA2_XOR(64, SHA3_STATE_TO_SA(ctx->state.bytes, 0, 0), RC[round_index]);
+  }
+  static void sha3_rnd(sha3_ctx* ctx, uint64_t round_index)
+  {
+    sha3_b1600_theta(ctx);
+    // sha3_print_state(ctx, round_index, "Theta");
+    sha3_b1600_rho(ctx);
+    // sha3_print_state(ctx, round_index, "Rho");
+    sha3_b1600_pi(ctx);
+    // sha3_print_state(ctx, round_index, "Pi");
+    sha3_b1600_chi(ctx);
+    // sha3_print_state(ctx, round_index, "Chi");
+    sha3_b1600_iota(ctx, round_index);
+    // sha3_print_state(ctx, round_index, "Iota");
+  }
+  static void sha3_keccak_p(sha3_ctx* ctx)
+  {
+    // sha3_rnd(ctx, 0);
+    for (unsigned int i = 12 + 2 * SHA3_b1600_L - 24; i < 12 + 2 * SHA3_b1600_L; i++) { sha3_rnd(ctx, i); }
+  }
+  static uint8_t sha3_reverse_bits_in_byte(uint8_t b)
+  {
+    b = (b & 0b11110000) >> 4 | (b & 0b00001111) << 4;
+    b = (b & 0b11001100) >> 2 | (b & 0b00110011) << 2;
+    b = (b & 0b10101010) >> 1 | (b & 0b01010101) << 1;
+    return b;
+  }
+  static uint64_t sha3_reverse_64(uint64_t value)
+  {
+    for (unsigned short j = 0; j < sizeof(value); j++) {
+      uint8_t* byte_ptr = (uint8_t*)&value;
+      byte_ptr[j]       = sha3_reverse_bits_in_byte(byte_ptr[j]);
+    }
+    return SHA_IS_BIG_ENDIAN ? SHA2_BYTE_SWAP_WS(64, value) : value;
+  }
+  static void sha3_print_data(const uint8_t* data, unsigned int count, const char* str)
+  {
+    printf("%s:\n", str);
+    for (unsigned int i = 0; i < count; i++) {
+      // const uint64_t v = data[i];
+      const uint64_t v = sha3_reverse_bits_in_byte(data[i]);
+      printf("%02x ", v);
+    }
+    // #define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+    // #define BYTE_TO_BINARY(byte)                                                                                          \
+//   ((byte) & 0x80 ? '1' : '0'), ((byte) & 0x40 ? '1' : '0'), ((byte) & 0x20 ? '1' : '0'), ((byte) & 0x10 ? '1' : '0'), \
+//       ((byte) & 0x08 ? '1' : '0'), ((byte) & 0x04 ? '1' : '0'), ((byte) & 0x02 ? '1' : '0'), ((byte) & 0x01 ? '1' : '0')
+    //     for (unsigned int i = 0; i < count; i++) {
+    //       // const uint8_t rev = sha3_reverse_bits_in_byte(data[i]);
+    //       const uint8_t rev = data[i];
+    //       printf(BYTE_TO_BINARY_PATTERN " ", BYTE_TO_BINARY(rev));
+    //     }
+    printf("\n");
+  }
+  static void sha3_sponge(sha3_ctx* ctx, const uint8_t* opt_data)
+  {
+    const uint8_t* data = opt_data != NULL ? opt_data : ctx->pi.bytes;
+    // TODO: Have to Check if r is always 64bit aligned.
+    // TODO: Have to mask with 0 if not
+    // sha3_print_data(data, ctx->r / 8, "Data");
+    for (unsigned int i = 0; i < (ctx->r + 63) / 64; i++) {
+      const uint64_t rev = sha3_reverse_64(((uint64_t*)data)[i]);
+      // const uint64_t rev               = ((uint64_t*)data)[i];
+      ((uint64_t*)ctx->state.bytes)[i] = SHA2_XOR(64, ((uint64_t*)ctx->state.bytes)[i], rev);
+    }
+    // sha3_print_state(ctx, 0, "XOR'd state");
+    sha3_keccak_p(ctx);
+    ctx->bit_count = 0;
+  }
+
+  SHA_DEF void sha3_append_bytes(sha3_ctx* ctx, const uint8_t* data, uint64_t byte_count)
+  {
+    if (ctx->bit_count % 8 != 0) sha3_append_bits(ctx, data, byte_count * 8);
+
+    // Fill started block
+    if (ctx->bit_count > 0) {
+      const unsigned int missing_byte_count = (ctx->r - ctx->bit_count) / 8;
+      const unsigned int copy_byte_count    = SHA2_MIN(missing_byte_count, byte_count);
+      SHA_MEMCPY(ctx->pi.bytes + (ctx->bit_count / 8), data, copy_byte_count);
+      data           += copy_byte_count;
+      byte_count     -= copy_byte_count;
+      ctx->bit_count += copy_byte_count * 8;
+      if (ctx->bit_count == ctx->r) sha3_sponge(ctx, NULL);
+    }
+
+    // Do full blocks
+    const size_t bytes_in_block = ctx->r / 8;
+    while (byte_count >= bytes_in_block) {
+      ctx->bit_count = ctx->r; // ?
+      sha3_sponge(ctx, data);
+      data       += bytes_in_block;
+      byte_count -= bytes_in_block;
+    }
+
+    // Set rest
+    if (byte_count > 0) {
+      SHA_MEMCPY(ctx->pi.bytes, data, byte_count);
+      ctx->bit_count += byte_count * 8;
+    }
+  }
+  SHA_DEF void sha3_append_bits(sha3_ctx* ctx, const uint8_t* data, uint64_t bit_count)
+  {
+    // Use append bytes for as many bytes as possible
+    if (ctx->bit_count % 8 == 0 && bit_count > 8) {
+      const uint64_t byte_count = bit_count / 8;
+      sha3_append_bytes(ctx, data, byte_count);
+      bit_count = bit_count - (byte_count * 8);
+      if (bit_count == 0) return;
+      data += byte_count;
+    }
+
+    while (bit_count > 0) {
+      const uint8_t byte              = *(data++); // sha3_reverse_bits_in_byte
+      const size_t  byte_index        = ctx->bit_count / 8;
+      const uint8_t bits_in_byte      = ctx->bit_count - (byte_index * 8);
+      const uint8_t missing_bit_count = 8 - bits_in_byte;
+
+      // Set rest of current byte
+      const uint8_t bits_in_data_byte  = bit_count >= 8 ? 8 : bit_count;
+      const uint8_t zeroed_pi_byte     = ctx->pi.bytes[byte_index] & ~((1 << missing_bit_count) - 1);
+      ctx->pi.bytes[byte_index]        = zeroed_pi_byte | ((byte & ~(0xFF >> bits_in_data_byte)) >> bits_in_byte);
+      const uint8_t added_bit_count    = SHA2_MIN(missing_bit_count, bits_in_data_byte);
+      ctx->bit_count                  += added_bit_count;
+
+      // Sponge block if was last byte
+      size_t byte_index_next = byte_index + 1;
+      if (ctx->bit_count >= ctx->r) {
+        sha3_sponge(ctx, NULL);
+        byte_index_next = 0;
+      }
+
+      // Set start of next byte
+      if (added_bit_count < bits_in_data_byte) {
+        ctx->pi.bytes[byte_index_next]  = (byte & ~(0xFF >> bits_in_data_byte)) << missing_bit_count;
+        ctx->bit_count                 += bits_in_data_byte - added_bit_count;
+      }
+      bit_count -= bits_in_data_byte;
+    }
+  }
+  SHA_DEF void sha3_append(sha3_ctx* ctx, const uint8_t* data, uint64_t bit_count) { sha3_append_bits(ctx, data, bit_count); }
+
 #endif // SHA_2_IMPLEMENTATION
 
   // -------------------
@@ -1462,26 +1803,26 @@ extern "C" {
     return hash;
   }
   // SHA 2
-  SHA_DEF sha2_224_t sha2_224_get_hash(sha2_256_ctx* ctx)
+  SHA_DEF sha_224_t sha2_224_get_hash(sha2_256_ctx* ctx)
   {
     const uint64_t total_bits = ctx->block_count * SHA2_BLOCK_SIZE(SHA2_256) + ctx->bit_count;
     _sha2_256_pad_block(ctx, ctx->bit_count, total_bits);
     _sha2_256_hash_block(ctx, NULL);
-    sha2_224_t hash;
+    sha_224_t hash;
     for (uint32_t i = 0; i < sizeof(hash.words) / sizeof(*hash.words); i++) { hash.words[i] = ctx->hash.words[i]; }
     sha2_224_reset(ctx);
     return hash;
   }
-  SHA_DEF sha2_256_t sha2_256_get_hash(sha2_256_ctx* ctx)
+  SHA_DEF sha_256_t sha2_256_get_hash(sha2_256_ctx* ctx)
   {
     const uint64_t total_bits = ctx->block_count * SHA2_BLOCK_SIZE(SHA2_256) + ctx->bit_count;
     _sha2_256_pad_block(ctx, ctx->bit_count, total_bits);
     _sha2_256_hash_block(ctx, NULL);
-    const sha2_256_t hash = ctx->hash;
+    const sha_256_t hash = ctx->hash;
     sha2_256_reset(ctx);
     return hash;
   }
-  SHA_DEF sha2_384_t sha2_384_get_hash(sha2_512_ctx* ctx)
+  SHA_DEF sha_384_t sha2_384_get_hash(sha2_512_ctx* ctx)
   {
     static_assert(SHA2_BLOCK_SIZE(SHA2_384) == 1024, "Block size for SHA2_384 is expected to be 1024");
     const uint64_t total_bits_low   = ctx->block_count_low * SHA2_BLOCK_SIZE(SHA2_384) + ctx->bit_count;
@@ -1489,12 +1830,12 @@ extern "C" {
     total_bits_high                |= ctx->block_count_low >> (64 - 10); // 2^10 = 1024
     _sha2_512_pad_block(ctx, ctx->bit_count, total_bits_high, total_bits_low);
     _sha2_512_hash_block(ctx, NULL);
-    sha2_384_t hash;
+    sha_384_t hash;
     for (uint32_t i = 0; i < sizeof(hash.words) / sizeof(*hash.words); i++) { hash.words[i] = ctx->hash.words[i]; }
     sha2_384_reset(ctx);
     return hash;
   }
-  SHA_DEF sha2_512_t sha2_512_get_hash(sha2_512_ctx* ctx)
+  SHA_DEF sha_512_t sha2_512_get_hash(sha2_512_ctx* ctx)
   {
     static_assert(SHA2_BLOCK_SIZE(SHA2_512) == 1024, "Block size for SHA2_512 is expected to be 1024");
     const uint64_t total_bits_low   = ctx->block_count_low * SHA2_BLOCK_SIZE(SHA2_512) + ctx->bit_count;
@@ -1502,11 +1843,11 @@ extern "C" {
     total_bits_high                |= ctx->block_count_low >> (64 - 10); // 2^10 = 1024
     _sha2_512_pad_block(ctx, ctx->bit_count, total_bits_high, total_bits_low);
     _sha2_512_hash_block(ctx, NULL);
-    const sha2_512_t hash = ctx->hash;
+    const sha_512_t hash = ctx->hash;
     sha2_384_reset(ctx);
     return hash;
   }
-  SHA_DEF sha2_224_t sha2_512_224_get_hash(sha2_512_ctx* ctx)
+  SHA_DEF sha_224_t sha2_512_224_get_hash(sha2_512_ctx* ctx)
   {
     static_assert(SHA2_BLOCK_SIZE(SHA2_512) == 1024, "Block size for SHA2_512 is expected to be 1024");
     const uint64_t total_bits_low   = ctx->block_count_low * SHA2_BLOCK_SIZE(SHA2_512) + ctx->bit_count;
@@ -1514,7 +1855,7 @@ extern "C" {
     total_bits_high                |= ctx->block_count_low >> (64 - 10); // 2^10 = 1024
     _sha2_512_pad_block(ctx, ctx->bit_count, total_bits_high, total_bits_low);
     _sha2_512_hash_block(ctx, NULL);
-    sha2_224_t hash;
+    sha_224_t hash;
     for (uint32_t i = 0; i < sizeof(hash.words) / sizeof(*hash.words);) {
       const uint64_t v   = ctx->hash.words[i / 2];
       hash.words[i]      = v >> 32;
@@ -1524,7 +1865,7 @@ extern "C" {
     sha2_512_224_reset(ctx);
     return hash;
   }
-  SHA_DEF sha2_256_t sha2_512_256_get_hash(sha2_512_ctx* ctx)
+  SHA_DEF sha_256_t sha2_512_256_get_hash(sha2_512_ctx* ctx)
   {
     static_assert(SHA2_BLOCK_SIZE(SHA2_512) == 1024, "Block size for SHA2_512 is expected to be 1024");
     const uint64_t total_bits_low   = ctx->block_count_low * SHA2_BLOCK_SIZE(SHA2_512) + ctx->bit_count;
@@ -1532,7 +1873,7 @@ extern "C" {
     total_bits_high                |= ctx->block_count_low >> (64 - 10); // 2^10 = 1024
     _sha2_512_pad_block(ctx, ctx->bit_count, total_bits_high, total_bits_low);
     _sha2_512_hash_block(ctx, NULL);
-    sha2_256_t hash;
+    sha_256_t hash;
     for (uint32_t i = 0; i < sizeof(hash.words) / sizeof(*hash.words);) {
       const uint64_t v   = ctx->hash.words[i / 2];
       hash.words[i]      = v >> 32;
@@ -1542,6 +1883,93 @@ extern "C" {
     sha2_512_256_reset(ctx);
     return hash;
   }
+  // SHA 3
+  static const uint8_t ZERO_READ_ONLY[1600 / 8] = { 0 };
+  static void          sha3_pad10_star_1(sha3_ctx* ctx, uint16_t leftover_bits)
+  {
+    static const uint8_t ONE_READ_ONLY = 0b10000000;
+    sha3_append_bits(ctx, &ONE_READ_ONLY, 1);
+    int v   = -leftover_bits - 2;
+    int mod = (v % ctx->r + ctx->r) % ctx->r;   // Actual modulo, not remainder %
+    sha3_append_bits(ctx, ZERO_READ_ONLY, mod); // (-m - 2) mod ctx->r
+    sha3_append_bits(ctx, &ONE_READ_ONLY, 1);
+    // TODO: Assert ctx->bit_count == 1600?
+  }
+  static unsigned short sha3_copy_state_reversed(sha3_ctx* ctx, uint8_t* src, uint8_t* dest, unsigned short cpy_byte_count)
+  {
+    unsigned short src_byte_count = ctx->r / 8;
+
+    unsigned short cpy_word_count = cpy_byte_count / 8;
+    unsigned short src_word_count = src_byte_count / 8;
+    unsigned short word_count     = SHA2_MIN(cpy_word_count, src_word_count);
+    for (unsigned short i = 0; i < word_count; i++) {
+      // ((uint64_t*)dest)[i] = sha3_reverse_64(((uint64_t*)src)[i]);
+      ((uint64_t*)dest)[i] = ((uint64_t*)src)[i];
+    }
+    if (cpy_byte_count >= src_byte_count) return src_byte_count;
+    dest += word_count * 8;
+    src  += word_count * 8;
+
+    uint8_t buf_rev[8];
+    for (unsigned short i = 0; i < 8; i++) {
+      // buf_rev[i] = sha3_reverse_bits_in_byte(src[7 - i]);
+      buf_rev[i] = src[i];
+    }
+    unsigned short bytes_leftover = cpy_byte_count - (word_count * 8);
+    SHA_MEMCPY(dest, buf_rev, bytes_leftover);
+    return cpy_byte_count;
+  }
+  static void sha3_get_hash(sha3_ctx* ctx, uint8_t* hash_bytes_out)
+  {
+    // Pad Message ending
+    static const uint8_t PAD_STR_READ_ONLY = 0b01000000;
+    sha3_append_bits(ctx, &PAD_STR_READ_ONLY, 2);
+    // Pad Block
+    // ASSERT (ctx->block_count * ctx->r) <= UINT64_MAX
+    sha3_pad10_star_1(ctx, ctx->bit_count);
+    //
+    // sha3_sponge(ctx, NULL);
+
+    // Init Values
+    unsigned int missing_byte_count  = ctx->d / 8;
+    unsigned int added_count         = sha3_copy_state_reversed(ctx, ctx->state.bytes, hash_bytes_out, missing_byte_count);
+    missing_byte_count              -= added_count;
+    hash_bytes_out                  += added_count;
+
+    while (missing_byte_count > 0) {
+      sha3_keccak_p(ctx);
+      added_count         = sha3_copy_state_reversed(ctx, ctx->state.bytes, hash_bytes_out, missing_byte_count);
+      missing_byte_count -= added_count;
+      hash_bytes_out     += added_count;
+    }
+  }
+  SHA_DEF void sha3_224_get_hash(sha3_ctx* ctx, sha_224_t* hash_out)
+  {
+    sha_224_bytes_t bytes;
+    sha3_get_hash(ctx, bytes.bytes);
+    sha_224_from_bytes(bytes.bytes, hash_out);
+  }
+  SHA_DEF void sha3_256_get_hash(sha3_ctx* ctx, sha_256_t* hash_out)
+  {
+    sha_256_bytes_t bytes;
+    sha3_get_hash(ctx, bytes.bytes);
+    sha_256_from_bytes(bytes.bytes, hash_out);
+  }
+  SHA_DEF void sha3_384_get_hash(sha3_ctx* ctx, sha_384_t* hash_out)
+  {
+    sha_384_bytes_t bytes;
+    sha3_get_hash(ctx, bytes.bytes);
+    sha_384_from_bytes(bytes.bytes, hash_out);
+  }
+  SHA_DEF void sha3_512_get_hash(sha3_ctx* ctx, sha_512_t* hash_out)
+  {
+    sha_512_bytes_t bytes;
+    sha3_get_hash(ctx, bytes.bytes);
+    sha_512_from_bytes(bytes.bytes, hash_out);
+  }
+  SHA_DEF void sha3_shake128_get_hash(sha3_ctx* ctx, uint8_t* hash_out) { sha3_get_hash(ctx, hash_out); }
+  SHA_DEF void sha3_shake256_get_hash(sha3_ctx* ctx, uint8_t* hash_out) { sha3_get_hash(ctx, hash_out); }
+
 #endif // SHA_2_IMPLEMENTATION
 
 // --------------------
@@ -1550,51 +1978,114 @@ extern "C" {
 // --------------------
 #ifdef SHA_2_IMPLEMENTATION
   // SHA 1
-  SHA_DEF sha1_bytes_t sha1_to_bytes(sha1_t h)
+  SHA_DEF void sha1_to_bytes(sha1_t h, uint8_t* bytes_out)
   {
-    sha1_bytes_t bytes;
-    for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
-      SHA2_WORD_TYPE(SHA1) word_swapped = SHA2_BYTE_SWAP_IF_LITTLE(SHA1, h.words[i]);
-      SHA2_MEMCPY(bytes.bytes + i * 4, &word_swapped, 4);
+    if (bytes_out == NULL) return;
+    if (!SHA_IS_BIG_ENDIAN) {
+      for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
+        SHA_WORD_TYPE(SHA1) word_swapped = SHA_BYTE_SWAP(SHA1, h.words[i]);
+        SHA_MEMCPY(bytes_out + i * 4, &word_swapped, 4);
+      }
     }
-    return bytes;
   }
-  // SHA 2
-  SHA_DEF sha2_224_bytes_t sha2_224_to_bytes(sha2_224_t h)
+  // SHA 2/3
+  SHA_DEF void sha_224_to_bytes(sha_224_t h, uint8_t* bytes_out)
   {
-    sha2_224_bytes_t bytes;
-    for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
-      SHA2_WORD_TYPE(SHA2_224) word_swapped = SHA2_BYTE_SWAP_IF_LITTLE(SHA2_224, h.words[i]);
-      SHA2_MEMCPY(bytes.bytes + i * 4, &word_swapped, 4);
+    if (bytes_out == NULL) return;
+    if (!SHA_IS_BIG_ENDIAN) {
+      for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
+        SHA_WORD_TYPE(SHA2_224) word_swapped = SHA_BYTE_SWAP(SHA2_224, h.words[i]);
+        SHA_MEMCPY(bytes_out + i * 4, &word_swapped, 4);
+      }
     }
-    return bytes;
   }
-  SHA_DEF sha2_256_bytes_t sha2_256_to_bytes(sha2_256_t h)
+  SHA_DEF void sha_256_to_bytes(sha_256_t h, uint8_t* bytes_out)
   {
-    sha2_256_bytes_t bytes;
-    for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
-      SHA2_WORD_TYPE(SHA2_256) word_swapped = SHA2_BYTE_SWAP_IF_LITTLE(SHA2_256, h.words[i]);
-      SHA2_MEMCPY(bytes.bytes + i * 4, &word_swapped, 4);
+    if (bytes_out == NULL) return;
+    if (!SHA_IS_BIG_ENDIAN) {
+      for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
+        SHA_WORD_TYPE(SHA2_256) word_swapped = SHA_BYTE_SWAP(SHA2_256, h.words[i]);
+        SHA_MEMCPY(bytes_out + i * 4, &word_swapped, 4);
+      }
     }
-    return bytes;
   }
-  SHA_DEF sha2_384_bytes_t sha2_384_to_bytes(sha2_384_t h)
+  SHA_DEF void sha_384_to_bytes(sha_384_t h, uint8_t* bytes_out)
   {
-    sha2_384_bytes_t bytes;
-    for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
-      SHA2_WORD_TYPE(SHA2_384) word_swapped = SHA2_BYTE_SWAP_IF_LITTLE(SHA2_384, h.words[i]);
-      SHA2_MEMCPY(bytes.bytes + i * 8, &word_swapped, 8);
+    if (bytes_out == NULL) return;
+    if (!SHA_IS_BIG_ENDIAN) {
+      for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
+        SHA_WORD_TYPE(SHA2_384) word_swapped = SHA_BYTE_SWAP(SHA2_384, h.words[i]);
+        SHA_MEMCPY(bytes_out + i * 8, &word_swapped, 8);
+      }
     }
-    return bytes;
   }
-  SHA_DEF sha2_512_bytes_t sha2_512_to_bytes(sha2_512_t h)
+  SHA_DEF void sha_512_to_bytes(sha_512_t h, uint8_t* bytes_out)
   {
-    sha2_512_bytes_t bytes;
-    for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
-      SHA2_WORD_TYPE(SHA2_512) word_swapped = SHA2_BYTE_SWAP_IF_LITTLE(SHA2_512, h.words[i]);
-      SHA2_MEMCPY(bytes.bytes + i * 8, &word_swapped, 8);
+    if (bytes_out == NULL) return;
+    if (!SHA_IS_BIG_ENDIAN) {
+      for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
+        SHA_WORD_TYPE(SHA2_512) word_swapped = SHA_BYTE_SWAP(SHA2_512, h.words[i]);
+        SHA_MEMCPY(bytes_out + i * 8, &word_swapped, 8);
+      }
     }
-    return bytes;
+  }
+#endif // SHA_2_IMPLEMENTATION
+
+// ------------------
+// Bytes to words
+// ------------------
+#ifdef SHA_2_IMPLEMENTATION
+  // SHA 1
+  SHA_DEF void sha1_from_bytes(uint8_t* bytes, sha1_t* hash_out)
+  {
+    if (hash_out == NULL) return;
+    if (!SHA_IS_BIG_ENDIAN) {
+      for (size_t i = 0; i < sizeof(hash_out->words) / sizeof(*hash_out->words); i++) {
+        SHA_MEMCPY(&hash_out->words[i], bytes + i * 4, 4);
+        hash_out->words[i] = SHA_BYTE_SWAP(SHA1, hash_out->words[i]);
+      }
+    }
+  }
+  // SHA 2/3
+  SHA_DEF void sha_224_from_bytes(uint8_t* bytes, sha_224_t* hash_out)
+  {
+    if (hash_out == NULL) return;
+    if (!SHA_IS_BIG_ENDIAN) {
+      for (size_t i = 0; i < sizeof(hash_out->words) / sizeof(*hash_out->words); i++) {
+        SHA_MEMCPY(&hash_out->words[i], bytes + i * 4, 4);
+        hash_out->words[i] = SHA_BYTE_SWAP(SHA2_224, hash_out->words[i]);
+      }
+    }
+  }
+  SHA_DEF void sha_256_from_bytes(uint8_t* bytes, sha_256_t* hash_out)
+  {
+    if (hash_out == NULL) return;
+    if (!SHA_IS_BIG_ENDIAN) {
+      for (size_t i = 0; i < sizeof(hash_out->words) / sizeof(*hash_out->words); i++) {
+        SHA_MEMCPY(&hash_out->words[i], bytes + i * 4, 4);
+        hash_out->words[i] = SHA_BYTE_SWAP(SHA2_256, hash_out->words[i]);
+      }
+    }
+  }
+  SHA_DEF void sha_384_from_bytes(uint8_t* bytes, sha_384_t* hash_out)
+  {
+    if (hash_out == NULL) return;
+    if (!SHA_IS_BIG_ENDIAN) {
+      for (size_t i = 0; i < sizeof(hash_out->words) / sizeof(*hash_out->words); i++) {
+        SHA_MEMCPY(&hash_out->words[i], bytes + i * 8, 8);
+        hash_out->words[i] = SHA_BYTE_SWAP(SHA2_384, hash_out->words[i]);
+      }
+    }
+  }
+  SHA_DEF void sha_512_from_bytes(uint8_t* bytes, sha_512_t* hash_out)
+  {
+    if (hash_out == NULL) return;
+    if (!SHA_IS_BIG_ENDIAN) {
+      for (size_t i = 0; i < sizeof(hash_out->words) / sizeof(*hash_out->words); i++) {
+        SHA_MEMCPY(&hash_out->words[i], bytes + i * 8, 8);
+        hash_out->words[i] = SHA_BYTE_SWAP(SHA2_512, hash_out->words[i]);
+      }
+    }
   }
 #endif // SHA_2_IMPLEMENTATION
 
@@ -1603,39 +2094,39 @@ extern "C" {
   // ------------------------
 #ifdef SHA_2_IMPLEMENTATION
   // SHA 1
-  SHA_DEF bool sha1_is_equal(sha1_t a, sha1_t b)
+  SHA_DEF bool sha1_is_equal(const sha1_t* a, const sha1_t* b)
   {
-    for (int i = 0; i < sizeof(a.words) / sizeof(*a.words); i++) {
-      if (a.words[i] != b.words[i]) return false;
+    for (int i = 0; i < sizeof(a->words) / sizeof(*a->words); i++) {
+      if (a->words[i] != b->words[i]) return false;
     }
     return true;
   }
   // SHA 2
-  SHA_DEF bool sha2_224_is_equal(sha2_224_t a, sha2_224_t b)
+  SHA_DEF bool sha_224_is_equal(const sha_224_t* a, const sha_224_t* b)
   {
-    for (int i = 0; i < sizeof(a.words) / sizeof(*a.words); i++) {
-      if (a.words[i] != b.words[i]) return false;
+    for (int i = 0; i < sizeof(a->words) / sizeof(*a->words); i++) {
+      if (a->words[i] != b->words[i]) return false;
     }
     return true;
   }
-  SHA_DEF bool sha2_256_is_equal(sha2_256_t a, sha2_256_t b)
+  SHA_DEF bool sha_256_is_equal(const sha_256_t* a, const sha_256_t* b)
   {
-    for (int i = 0; i < sizeof(a.words) / sizeof(*a.words); i++) {
-      if (a.words[i] != b.words[i]) return false;
+    for (int i = 0; i < sizeof(a->words) / sizeof(*a->words); i++) {
+      if (a->words[i] != b->words[i]) return false;
     }
     return true;
   }
-  SHA_DEF bool sha2_384_is_equal(sha2_384_t a, sha2_384_t b)
+  SHA_DEF bool sha_384_is_equal(const sha_384_t* a, const sha_384_t* b)
   {
-    for (int i = 0; i < sizeof(a.words) / sizeof(*a.words); i++) {
-      if (a.words[i] != b.words[i]) return false;
+    for (int i = 0; i < sizeof(a->words) / sizeof(*a->words); i++) {
+      if (a->words[i] != b->words[i]) return false;
     }
     return true;
   }
-  SHA_DEF bool sha2_512_is_equal(sha2_512_t a, sha2_512_t b)
+  SHA_DEF bool sha_512_is_equal(const sha_512_t* a, const sha_512_t* b)
   {
-    for (int i = 0; i < sizeof(a.words) / sizeof(*a.words); i++) {
-      if (a.words[i] != b.words[i]) return false;
+    for (int i = 0; i < sizeof(a->words) / sizeof(*a->words); i++) {
+      if (a->words[i] != b->words[i]) return false;
     }
     return true;
   }
@@ -1645,72 +2136,88 @@ extern "C" {
   // To String
   // -------------------------
 #ifdef SHA_2_IMPLEMENTATION
-  static void sha2_word_32_to_hex_string(char* buf, bool upper_case, _SHA2_WORD_TYPE(32) v)
+  static void sha_byte_to_hex_string(char* buf, bool upper_case, uint8_t v)
   {
-    for (size_t i = 0; i < (32 / 4); i++) {
-      char bits = SHA2_AND(32, v, 0xF);
-      if (bits < 10) buf[(32 / 4) - 1 - i] = bits + '0';
-      else buf[(32 / 4) - 1 - i] = (bits - 10) + (upper_case ? 'A' : 'a');
-      v = SHA2_SHR(32, v, 4);
+    const char bits_low  = v & 0x0F;
+    const char bits_high = (v & 0xF0) >> 4;
+    {
+      // Low
+      if (bits_low < 10) buf[1] = bits_low + '0';
+      else buf[1] = (bits_low - 10) + (upper_case ? 'A' : 'a');
+    }
+    {
+      // High
+      if (bits_high < 10) buf[0] = bits_high + '0';
+      else buf[0] = (bits_high - 10) + (upper_case ? 'A' : 'a');
     }
   }
-  static void sha2_word_64_to_hex_string(char* buf, bool upper_case, _SHA2_WORD_TYPE(64) v)
+  static void sha_word_32_to_hex_string(char* buf, bool upper_case, _SHA2_WORD_TYPE(32) v)
   {
-    for (size_t i = 0; i < (64 / 4); i++) {
-      char bits = SHA2_AND(64, v, 0xF);
-      if (bits < 10) buf[(64 / 4) - 1 - i] = bits + '0';
-      else buf[(64 / 4) - 1 - i] = (bits - 10) + (upper_case ? 'A' : 'a');
-      v = SHA2_SHR(64, v, 4);
+    for (int i = (32 / 8) - 1; i >= 0; i--) {
+      unsigned int  shift_amount = (i * 8);
+      const uint8_t byte         = SHA2_AND(32, v, 0xFF);
+      sha_byte_to_hex_string(buf + i * 2, upper_case, byte);
+      v = SHA2_SHR(32, v, 8);
+    }
+  }
+  static void sha_word_64_to_hex_string(char* buf, bool upper_case, _SHA2_WORD_TYPE(64) v)
+  {
+    for (int i = (64 / 8) - 1; i >= 0; i--) {
+      unsigned int  shift_amount = (i * 8);
+      const uint8_t byte         = SHA2_AND(64, v, 0xFF);
+      sha_byte_to_hex_string(buf + i * 2, upper_case, byte);
+      v = SHA2_SHR(64, v, 8);
     }
   }
 
   // SHA 1
-  SHA_DEF const char* sha1_to_string(sha1_t h, bool upper_case)
+  SHA_DEF const char* sha1_to_string(const sha1_t* h, bool upper_case)
   {
     static char buf[(SHA2_HASH_SIZE(SHA1) / 4) + 1]; // 4bits per char
-    for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
-      sha2_word_32_to_hex_string(buf + i * 8, upper_case, h.words[i]);
+    for (size_t i = 0; i < sizeof(h->words) / sizeof(*h->words); i++) {
+      sha_word_32_to_hex_string(buf + i * 8, upper_case, h->words[i]);
     }
     buf[SHA2_HASH_SIZE(SHA1) / 4] = '\0';
     return buf;
   }
   // SHA 2
-  SHA_DEF const char* sha2_224_to_string(sha2_224_t h, bool upper_case)
+  SHA_DEF const char* sha_224_to_string(const sha_224_t* h, bool upper_case)
   {
     static char buf[(SHA2_HASH_SIZE(SHA2_224) / 4) + 1]; // 4bits per char
-    for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
-      sha2_word_32_to_hex_string(buf + i * 8, upper_case, h.words[i]);
+    for (size_t i = 0; i < sizeof(h->words) / sizeof(*h->words); i++) {
+      sha_word_32_to_hex_string(buf + i * 8, upper_case, h->words[i]);
     }
     buf[SHA2_HASH_SIZE(SHA2_224) / 4] = '\0';
     return buf;
   }
-  SHA_DEF const char* sha2_256_to_string(sha2_256_t h, bool upper_case)
+  SHA_DEF const char* sha_256_to_string(const sha_256_t* h, bool upper_case)
   {
     static char buf[(SHA2_HASH_SIZE(SHA2_256) / 4) + 1]; // 4bits per char
-    for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
-      sha2_word_32_to_hex_string(buf + i * 8, upper_case, h.words[i]);
+    for (size_t i = 0; i < sizeof(h->words) / sizeof(*h->words); i++) {
+      sha_word_32_to_hex_string(buf + i * 8, upper_case, h->words[i]);
     }
     buf[SHA2_HASH_SIZE(SHA2_256) / 4] = '\0';
     return buf;
   }
-  SHA_DEF const char* sha2_384_to_string(sha2_384_t h, bool upper_case)
+  SHA_DEF const char* sha_384_to_string(const sha_384_t* h, bool upper_case)
   {
     static char buf[(SHA2_HASH_SIZE(SHA2_384) / 4) + 1]; // 4bits per char
-    for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
-      sha2_word_64_to_hex_string(buf + i * 16, upper_case, h.words[i]);
+    for (size_t i = 0; i < sizeof(h->words) / sizeof(*h->words); i++) {
+      sha_word_64_to_hex_string(buf + i * 16, upper_case, h->words[i]);
     }
     buf[SHA2_HASH_SIZE(SHA2_384) / 4] = '\0';
     return buf;
   }
-  SHA_DEF const char* sha2_512_to_string(sha2_512_t h, bool upper_case)
+  SHA_DEF const char* sha_512_to_string(const sha_512_t* h, bool upper_case)
   {
     static char buf[(SHA2_HASH_SIZE(SHA2_512) / 4) + 1]; // 4bits per char
-    for (size_t i = 0; i < sizeof(h.words) / sizeof(*h.words); i++) {
-      sha2_word_64_to_hex_string(buf + i * 16, upper_case, h.words[i]);
+    for (size_t i = 0; i < sizeof(h->words) / sizeof(*h->words); i++) {
+      sha_word_64_to_hex_string(buf + i * 16, upper_case, h->words[i]);
     }
     buf[SHA2_HASH_SIZE(SHA2_512) / 4] = '\0';
     return buf;
   }
+  // TODO: Bytes to string?
 #endif // SHA_2_IMPLEMENTATION
 
 #ifdef __cplusplus
