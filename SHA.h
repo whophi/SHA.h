@@ -8,7 +8,7 @@
 
   COMPILE-TIME OPTIONS
 
-    #define SHA_2_IMPLEMENTATION
+    #define SHA_IMPLEMENTATION
       Includes the implementation of the library.
 
     #define SHA_LIB_STATIC
@@ -24,11 +24,11 @@
       Has to be an expression.
       WARNING: The default implementation uses <stdio.h> and <stdlib.h>.
 
-    #define SHA2_NO_STRING_INCLUDE
+    #define SHA_NO_STRING_INCLUDE
       Prevents the import of <string.h>.
-      If this is defined, SHA2_MEMSET and SHA_MEMCPY have to also be defined
+      If this is defined, SHA_MEMSET and SHA_MEMCPY have to also be defined
 
-    #define SHA2_MEMSET
+    #define SHA_MEMSET
     #define SHA_MEMCPY
       Allows setting own functions for memory operations.
 
@@ -56,16 +56,16 @@
       Allows to specify a check for the endianess of the system.
       Can be an expression, evaluated at run time, or a constant.
 
-    #define SHA2_ROTR
-    #define SHA2_ROTL
+    #define SHA_ROTR
+    #define SHA_ROTL
       Allows defining custom rotation operations.
       The signature is (WS, x, n), where WS is the word size (32,64), x is the value and n is the shift amount.
       The defaults are implemented using shifts and ORs.
 
 */
 
-#ifndef _SHA_2_
-#define _SHA_2_
+#ifndef _SHA_INCLUDE_
+#define _SHA_INCLUDE_
 
 // --------------------
 // Includes
@@ -93,31 +93,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 int sha_assert_empty();
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
 int sha_assert_empty() { return 0; }
-#endif // SHA_2_IMPLEMENTATION
+#endif // SHA_IMPLEMENTATION
 #define SHA_ASSERT(cond, message) \
   (!!(cond) ? sha_assert_empty()  \
             : (printf("%s:%d:ASSERT FAILED: %s\n", __FILE__, __LINE__, message), exit(1), sha_assert_empty()))
 #endif // SHA_ASSERT
 
 // Memory Functions
-#ifndef SHA2_NO_STRING_INCLUDE
+#ifndef SHA_NO_STRING_INCLUDE
 #include <string.h>
-#ifndef SHA2_MEMSET
-#define SHA2_MEMSET(dest, value, size) memset(dest, value, size)
-#endif // SHA2_MEMSET
+#ifndef SHA_MEMSET
+#define SHA_MEMSET(dest, value, size) memset(dest, value, size)
+#endif // SHA_MEMSET
 #ifndef SHA_MEMCPY
 #define SHA_MEMCPY(dest, src, size) memcpy(dest, src, size)
 #endif // SHA_MEMCPY
-#else  // SHA2_NO_STRING_INCLUDE
-#ifndef SHA2_MEMSET
-static_assert("SHA2_MEMSET not defined without string.h");
-#endif // SHA2_MEMSET
+#else  // SHA_NO_STRING_INCLUDE
+#ifndef SHA_MEMSET
+static_assert("SHA_MEMSET not defined without string.h");
+#endif // SHA_MEMSET
 #ifndef SHA_MEMCPY
 static_assert("SHA_MEMCPY not defined without string.h");
 #endif // SHA_MEMCPY
-#endif // SHA2_NO_STRING_INCLUDE
+#endif // SHA_NO_STRING_INCLUDE
 
 #ifndef SHA_NO_SIMD
 #include <immintrin.h>
@@ -133,69 +133,85 @@ static_assert("SHA_MEMCPY not defined without string.h");
 // -------------------
 
 // SHA VALUES
-#define SHA1                          1
-#define SHA2_224                      224
-#define SHA2_256                      256
-#define SHA2_384                      384
-#define SHA2_512                      512
-#define SHA2_512_224                  512224
-#define SHA2_512_256                  512256
+#define SHA1                         1
+#define SHA2_224                     2224
+#define SHA2_256                     2256
+#define SHA2_384                     2384
+#define SHA2_512                     2512
+#define SHA2_512_224                 2512224
+#define SHA2_512_256                 2512256
+#define SHA3_224                     3224
+#define SHA3_256                     3256
+#define SHA3_384                     3384
+#define SHA3_512                     3512
 
-#define SHA2_HASH_SIZE_1              160
-#define SHA2_HASH_SIZE_224            224
-#define SHA2_HASH_SIZE_256            256
-#define SHA2_HASH_SIZE_384            384
-#define SHA2_HASH_SIZE_512            512
-#define SHA2_HASH_SIZE_512224         SHA2_HASH_SIZE_224
-#define SHA2_HASH_SIZE_512256         SHA2_HASH_SIZE_256
-#define _SHA2_HASH_SIZE(SHA_SIZE)     SHA2_HASH_SIZE_##SHA_SIZE
-#define SHA2_HASH_SIZE(SHA_SIZE)      _SHA2_HASH_SIZE(SHA_SIZE)
+#define SHA_HASH_SIZE_1              160
+#define SHA_HASH_SIZE_2224           224
+#define SHA_HASH_SIZE_2256           256
+#define SHA_HASH_SIZE_2384           384
+#define SHA_HASH_SIZE_2512           512
+#define SHA_HASH_SIZE_2512224        SHA_HASH_SIZE_2224
+#define SHA_HASH_SIZE_2512256        SHA_HASH_SIZE_2256
+#define SHA_HASH_SIZE_3224           224
+#define SHA_HASH_SIZE_3256           256
+#define SHA_HASH_SIZE_3384           384
+#define SHA_HASH_SIZE_3512           512
+#define _SHA_HASH_SIZE(SHA_SIZE)     SHA_HASH_SIZE_##SHA_SIZE
+#define SHA_HASH_SIZE(SHA_SIZE)      _SHA_HASH_SIZE(SHA_SIZE)
 
-#define SHA2_BLOCK_SIZE_1             512
-#define SHA2_BLOCK_SIZE_224           512
-#define SHA2_BLOCK_SIZE_256           512
-#define SHA2_BLOCK_SIZE_384           1024
-#define SHA2_BLOCK_SIZE_512           1024
-#define SHA2_BLOCK_SIZE_512224        1024
-#define SHA2_BLOCK_SIZE_512256        1024
-#define _SHA2_BLOCK_SIZE(SHA_SIZE)    SHA2_BLOCK_SIZE_##SHA_SIZE
-#define SHA2_BLOCK_SIZE(SHA_SIZE)     _SHA2_BLOCK_SIZE(SHA_SIZE)
+#define SHA_BLOCK_SIZE_1             512
+#define SHA_BLOCK_SIZE_2224          512
+#define SHA_BLOCK_SIZE_2256          512
+#define SHA_BLOCK_SIZE_2384          1024
+#define SHA_BLOCK_SIZE_2512          1024
+#define SHA_BLOCK_SIZE_2512224       SHA_BLOCK_SIZE_2512
+#define SHA_BLOCK_SIZE_2512256       SHA_BLOCK_SIZE_2512
+#define SHA_BLOCK_SIZE_3224          (1600 - (2 * (SHA_HASH_SIZE_3224)))
+#define SHA_BLOCK_SIZE_3256          (1600 - (2 * (SHA_HASH_SIZE_3256)))
+#define SHA_BLOCK_SIZE_3384          (1600 - (2 * (SHA_HASH_SIZE_3384)))
+#define SHA_BLOCK_SIZE_3512          (1600 - (2 * (SHA_HASH_SIZE_3512)))
+#define _SHA_BLOCK_SIZE(SHA_SIZE)    SHA_BLOCK_SIZE_##SHA_SIZE
+#define SHA_BLOCK_SIZE(SHA_SIZE)     _SHA_BLOCK_SIZE(SHA_SIZE)
 
-#define SHA2_WORD_SIZE_SHA_1          32
-#define SHA2_WORD_SIZE_SHA_224        32
-#define SHA2_WORD_SIZE_SHA_256        32
-#define SHA2_WORD_SIZE_SHA_384        64
-#define SHA2_WORD_SIZE_SHA_512        64
-#define SHA2_WORD_SIZE_SHA_512224     64
-#define SHA2_WORD_SIZE_SHA_512256     64
-#define _SHA2_WORD_SIZE(SHA_SIZE)     SHA2_WORD_SIZE_SHA_##SHA_SIZE
-#define SHA2_WORD_SIZE(SHA_SIZE)      _SHA2_WORD_SIZE(SHA_SIZE)
+#define SHA_WORD_SIZE_1              32
+#define SHA_WORD_SIZE_2224           32
+#define SHA_WORD_SIZE_2256           32
+#define SHA_WORD_SIZE_2384           64
+#define SHA_WORD_SIZE_2512           64
+#define SHA_WORD_SIZE_2512224        SHA_WORD_SIZE_2512
+#define SHA_WORD_SIZE_2512256        SHA_WORD_SIZE_2512
+#define SHA_WORD_SIZE_3224           64
+#define SHA_WORD_SIZE_3256           64
+#define SHA_WORD_SIZE_3384           64
+#define SHA_WORD_SIZE_3512           64
+#define _SHA_WORD_SIZE(SHA_SIZE)     SHA_WORD_SIZE_##SHA_SIZE
+#define SHA_WORD_SIZE(SHA_SIZE)      _SHA_WORD_SIZE(SHA_SIZE)
 
-#define SHA2_WORDS_IN_BLOCK(SHA_SIZE) (SHA2_BLOCK_SIZE(SHA_SIZE) / SHA2_WORD_SIZE(SHA_SIZE))
-#define SHA2_WORDS_IN_HASH(SHA_SIZE)  (SHA2_HASH_SIZE(SHA_SIZE) / SHA2_WORD_SIZE(SHA_SIZE))
+#define SHA_WORDS_IN_BLOCK(SHA_SIZE) (SHA_BLOCK_SIZE(SHA_SIZE) / SHA_WORD_SIZE(SHA_SIZE))
+#define SHA_WORDS_IN_HASH(SHA_SIZE)  (SHA_HASH_SIZE(SHA_SIZE) / SHA_WORD_SIZE(SHA_SIZE))
 
-#define SHA_WORD_TYPE_32              uint32_t
-#define SHA_WORD_TYPE_64              uint64_t
-#define __SHA2_WORD_TYPE(WS)          SHA_WORD_TYPE_##WS
-#define _SHA2_WORD_TYPE(WS)           __SHA2_WORD_TYPE(WS)
-#define SHA_WORD_TYPE(SHA)            _SHA2_WORD_TYPE(SHA2_WORD_SIZE(SHA))
+#define SHA_WORD_TYPE_32             uint32_t
+#define SHA_WORD_TYPE_64             uint64_t
+#define __SHA_WORD_TYPE(WS)          SHA_WORD_TYPE_##WS
+#define _SHA_WORD_TYPE(WS)           __SHA_WORD_TYPE(WS)
+#define SHA_WORD_TYPE(SHA)           _SHA_WORD_TYPE(SHA_WORD_SIZE(SHA))
 
 // --------------------------
 // Basic Operations
 // --------------------------
-#define SHA2_NOT(WS, a)    (~((_SHA2_WORD_TYPE(WS))(a)))
-#define SHA2_OR(WS, a, b)  (((_SHA2_WORD_TYPE(WS))(a)) | ((_SHA2_WORD_TYPE(WS))(b)))
-#define SHA2_AND(WS, a, b) (((_SHA2_WORD_TYPE(WS))(a)) & ((_SHA2_WORD_TYPE(WS))(b)))
-#define SHA2_XOR(WS, a, b) (((_SHA2_WORD_TYPE(WS))(a)) ^ ((_SHA2_WORD_TYPE(WS))(b)))
-#define SHA2_SHR(WS, x, n) (((_SHA2_WORD_TYPE(WS))(x)) >> (n))
-#define SHA2_SHL(WS, x, n) (((_SHA2_WORD_TYPE(WS))(x)) << (n))
+#define SHA_NOT(WS, a)    (~((_SHA_WORD_TYPE(WS))(a)))
+#define SHA_OR(WS, a, b)  (((_SHA_WORD_TYPE(WS))(a)) | ((_SHA_WORD_TYPE(WS))(b)))
+#define SHA_AND(WS, a, b) (((_SHA_WORD_TYPE(WS))(a)) & ((_SHA_WORD_TYPE(WS))(b)))
+#define SHA_XOR(WS, a, b) (((_SHA_WORD_TYPE(WS))(a)) ^ ((_SHA_WORD_TYPE(WS))(b)))
+#define SHA_SHR(WS, x, n) (((_SHA_WORD_TYPE(WS))(x)) >> (n))
+#define SHA_SHL(WS, x, n) (((_SHA_WORD_TYPE(WS))(x)) << (n))
 
-#ifndef SHA2_ROTR
-#define SHA2_ROTR(WS, x, n) SHA2_OR(WS, SHA2_SHR(WS, x, n), SHA2_SHL(WS, x, (WS) - (n)))
-#endif // SHA2_ROTR
-#ifndef SHA2_ROTL
-#define SHA2_ROTL(WS, x, n) SHA2_OR(WS, SHA2_SHL(WS, x, n), SHA2_SHR(WS, x, (WS) - (n)))
-#endif // SHA2_ROTL
+#ifndef SHA_ROTR
+#define SHA_ROTR(WS, x, n) SHA_OR(WS, SHA_SHR(WS, x, n), SHA_SHL(WS, x, (WS) - (n)))
+#endif // SHA_ROTR
+#ifndef SHA_ROTL
+#define SHA_ROTL(WS, x, n) SHA_OR(WS, SHA_SHL(WS, x, n), SHA_SHR(WS, x, (WS) - (n)))
+#endif // SHA_ROTL
 
 // -------------------------
 // Intrinsics
@@ -227,28 +243,26 @@ static_assert("SHA_MEMCPY not defined without string.h");
 #endif // SHA_IS_BIG_ENDIAN
 
 // (((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
-#define _SHA2_BYTE_SWAP_32(x)                                                             \
-  SHA2_OR(                                                                                \
-      32, SHA2_OR(32, SHA2_SHR(32, x, 24), SHA2_SHR(32, SHA2_AND(32, x, 0x00FF0000), 8)), \
-      SHA2_OR(32, SHA2_SHL(32, SHA2_AND(32, x, 0x0000FF00), 8), SHA2_SHL(32, x, 24)))
+#define _SHA_BYTE_SWAP_32(x)                                                          \
+  SHA_OR(                                                                             \
+      32, SHA_OR(32, SHA_SHR(32, x, 24), SHA_SHR(32, SHA_AND(32, x, 0x00FF0000), 8)), \
+      SHA_OR(32, SHA_SHL(32, SHA_AND(32, x, 0x0000FF00), 8), SHA_SHL(32, x, 24)))
 
 // ((((x) >> 56) & 0x00000000000000FF) | (((x) >> 40) & 0x000000000000FF00) | (((x) >> 24) & 0x0000000000FF0000) |
 //   (((x) >> 8) & 0x00000000FF000000) | (((x) << 8) & 0x000000FF00000000) | (((x) << 24) & 0x0000FF0000000000) |
 //   (((x) << 40) & 0x00FF000000000000) | (((x) << 56) & 0xFF00000000000000))
-#define _SHA2_BYTE_SWAP_64_R(x)                                                                                                  \
-  SHA2_OR(                                                                                                                       \
-      64,                                                                                                                        \
-      SHA2_OR(64, SHA2_AND(64, SHA2_SHR(64, x, 56), 0x00000000000000FF), SHA2_AND(64, SHA2_SHR(64, x, 40), 0x000000000000FF00)), \
-      SHA2_OR(64, SHA2_AND(64, SHA2_SHR(64, x, 24), 0x0000000000FF0000), SHA2_AND(64, SHA2_SHR(64, x, 8), 0x00000000FF000000)))
-#define _SHA2_BYTE_SWAP_64_L(x)                                                                                                 \
-  SHA2_OR(                                                                                                                      \
-      64,                                                                                                                       \
-      SHA2_OR(64, SHA2_AND(64, SHA2_SHL(64, x, 8), 0x000000FF00000000), SHA2_AND(64, SHA2_SHL(64, x, 24), 0x0000FF0000000000)), \
-      SHA2_OR(64, SHA2_AND(64, SHA2_SHL(64, x, 40), 0x00FF000000000000), SHA2_AND(64, SHA2_SHL(64, x, 56), 0xFF00000000000000)))
-#define _SHA2_BYTE_SWAP_64(x)                 SHA2_OR(64, _SHA2_BYTE_SWAP_64_R(x), _SHA2_BYTE_SWAP_64_L(x))
-#define _SHA2_BYTE_SWAP(WS, x)                _SHA2_BYTE_SWAP_##WS(x)
-#define SHA_BYTE_SWAP_WS(WS, x)               _SHA2_BYTE_SWAP(WS, x)
-#define SHA_BYTE_SWAP(SHA_SIZE, x)            SHA_BYTE_SWAP_WS(SHA2_WORD_SIZE(SHA_SIZE), x)
+#define _SHA_BYTE_SWAP_64_R(x)                                                                                                  \
+  SHA_OR(                                                                                                                       \
+      64, SHA_OR(64, SHA_AND(64, SHA_SHR(64, x, 56), 0x00000000000000FF), SHA_AND(64, SHA_SHR(64, x, 40), 0x000000000000FF00)), \
+      SHA_OR(64, SHA_AND(64, SHA_SHR(64, x, 24), 0x0000000000FF0000), SHA_AND(64, SHA_SHR(64, x, 8), 0x00000000FF000000)))
+#define _SHA_BYTE_SWAP_64_L(x)                                                                                                 \
+  SHA_OR(                                                                                                                      \
+      64, SHA_OR(64, SHA_AND(64, SHA_SHL(64, x, 8), 0x000000FF00000000), SHA_AND(64, SHA_SHL(64, x, 24), 0x0000FF0000000000)), \
+      SHA_OR(64, SHA_AND(64, SHA_SHL(64, x, 40), 0x00FF000000000000), SHA_AND(64, SHA_SHL(64, x, 56), 0xFF00000000000000)))
+#define _SHA_BYTE_SWAP_64(x)                  SHA_OR(64, _SHA_BYTE_SWAP_64_R(x), _SHA_BYTE_SWAP_64_L(x))
+#define _SHA_BYTE_SWAP(WS, x)                 _SHA_BYTE_SWAP_##WS(x)
+#define SHA_BYTE_SWAP_WS(WS, x)               _SHA_BYTE_SWAP(WS, x)
+#define SHA_BYTE_SWAP(SHA_SIZE, x)            SHA_BYTE_SWAP_WS(SHA_WORD_SIZE(SHA_SIZE), x)
 
 #define SHA2_BYTE_SWAP_IF_LITTLE(SHA_SIZE, x) (SHA_IS_BIG_ENDIAN ? (x) : SHA_BYTE_SWAP(SHA_SIZE, x))
 #define SHA2_BYTE_SWAP_IF_LITTLE_WS(WS, x)    (SHA_IS_BIG_ENDIAN ? (x) : SHA_BYTE_SWAP_WS(WS, x))
@@ -256,28 +270,27 @@ static_assert("SHA_MEMCPY not defined without string.h");
 // ---------------
 // Min/Max
 // ---------------
-#define SHA2_MIN(x, y) ((x) < (y) ? (x) : (y))
-#define SHA2_MAX(x, y) ((x) > (y) ? (x) : (y))
+#define SHA_MIN(x, y) ((x) < (y) ? (x) : (y))
+#define SHA_MAX(x, y) ((x) > (y) ? (x) : (y))
 
 // --------------------------
 // SHA Specific Operations
 // --------------------------
-#define SHA2_CH(WS, x, y, z)  SHA2_XOR(WS, SHA2_AND(WS, x, y), SHA2_AND(WS, SHA2_NOT(WS, x), z))
-#define SHA2_MAJ(WS, x, y, z) SHA2_XOR(WS, SHA2_XOR(WS, SHA2_AND(WS, x, y), SHA2_AND(WS, x, z)), SHA2_AND(WS, y, z))
+#define SHA2_CH(WS, x, y, z)  SHA_XOR(WS, SHA_AND(WS, x, y), SHA_AND(WS, SHA_NOT(WS, x), z))
+#define SHA2_MAJ(WS, x, y, z) SHA_XOR(WS, SHA_XOR(WS, SHA_AND(WS, x, y), SHA_AND(WS, x, z)), SHA_AND(WS, y, z))
 
 // SHA1
-#define _SHA1_PARITY(WS, x, y, z) SHA2_XOR(WS, x, SHA2_XOR(WS, y, z))
-#define _SHA1_40_59(x, y, z)      SHA2_MAJ(SHA2_WORD_SIZE(SHA1), x, y, z)
+#define _SHA1_PARITY(WS, x, y, z) SHA_XOR(WS, x, SHA_XOR(WS, y, z))
+#define _SHA1_40_59(x, y, z)      SHA2_MAJ(SHA_WORD_SIZE(SHA1), x, y, z)
 #define _SHA1_20_39_60_79(t, x, y, z) \
-  (t < 40 || (60 <= t && t < 80) ? _SHA1_PARITY(SHA2_WORD_SIZE(SHA1), x, y, z) : _SHA1_40_59(x, y, z))
-#define _SHA1_0_19(t, x, y, z) (0 <= t && t < 20 ? SHA2_CH(SHA2_WORD_SIZE(SHA1), x, y, z) : _SHA1_20_39_60_79(t, x, y, z))
+  (t < 40 || (60 <= t && t < 80) ? _SHA1_PARITY(SHA_WORD_SIZE(SHA1), x, y, z) : _SHA1_40_59(x, y, z))
+#define _SHA1_0_19(t, x, y, z) (0 <= t && t < 20 ? SHA2_CH(SHA_WORD_SIZE(SHA1), x, y, z) : _SHA1_20_39_60_79(t, x, y, z))
 #define SHA1_F(t, x, y, z)     _SHA1_0_19(t, x, y, z)
 
 // SHA2
 #define SHA2_SIGMA_LARGE(WS, x, n0, n1, n2) \
-  SHA2_XOR(WS, SHA2_XOR(WS, SHA2_ROTR(WS, x, n0), SHA2_ROTR(WS, x, n1)), SHA2_ROTR(WS, x, n2))
-#define SHA2_SIGMA_SMALL(WS, x, n0, n1, n2) \
-  SHA2_XOR(WS, SHA2_XOR(WS, SHA2_ROTR(WS, x, n0), SHA2_ROTR(WS, x, n1)), SHA2_SHR(WS, x, n2))
+  SHA_XOR(WS, SHA_XOR(WS, SHA_ROTR(WS, x, n0), SHA_ROTR(WS, x, n1)), SHA_ROTR(WS, x, n2))
+#define SHA2_SIGMA_SMALL(WS, x, n0, n1, n2) SHA_XOR(WS, SHA_XOR(WS, SHA_ROTR(WS, x, n0), SHA_ROTR(WS, x, n1)), SHA_SHR(WS, x, n2))
 
 // --------------------------
 // API
@@ -291,53 +304,55 @@ extern "C" {
   // Block Types
   typedef struct {
     union {
-      uint8_t bytes[SHA2_BLOCK_SIZE(SHA2_256) / 8];
-      SHA_WORD_TYPE(SHA2_256) words[SHA2_WORDS_IN_BLOCK(SHA2_256)];
-      uint64_t sizes[SHA2_BLOCK_SIZE(SHA2_256) / 64];
+      uint8_t bytes[SHA_BLOCK_SIZE(SHA2_256) / 8];
+      SHA_WORD_TYPE(SHA2_256) words[SHA_WORDS_IN_BLOCK(SHA2_256)];
+      uint64_t sizes[SHA_BLOCK_SIZE(SHA2_256) / 64];
     };
   } sha2_block_256_t;
 
   typedef struct {
     union {
-      uint8_t bytes[SHA2_BLOCK_SIZE(SHA2_512) / 8];
-      SHA_WORD_TYPE(SHA2_512) words[SHA2_WORDS_IN_BLOCK(SHA2_512)];
+      uint8_t bytes[SHA_BLOCK_SIZE(SHA2_512) / 8];
+      SHA_WORD_TYPE(SHA2_512) words[SHA_WORDS_IN_BLOCK(SHA2_512)];
     };
   } sha2_block_512_t;
 
   // Hash Types
-#define _SHA2_HASH_TYPE_NAME(SHA_SIZE) sha_##SHA_SIZE##_t
-#define _SHA2_HASH_TYPE(SHA_SIZE)                                \
-  typedef struct {                                               \
-    SHA_WORD_TYPE(SHA_SIZE) words[SHA2_WORDS_IN_HASH(SHA_SIZE)]; \
-  } _SHA2_HASH_TYPE_NAME(SHA_SIZE)
-
   // SHA 1
   typedef struct {
-    SHA_WORD_TYPE(SHA1) words[SHA2_WORDS_IN_HASH(SHA1)];
+    SHA_WORD_TYPE(SHA1) words[SHA_WORDS_IN_HASH(SHA1)];
   } sha1_t;
   // SHA 2/3
-  _SHA2_HASH_TYPE(SHA2_224);
-  _SHA2_HASH_TYPE(SHA2_256);
-  _SHA2_HASH_TYPE(SHA2_384);
-  _SHA2_HASH_TYPE(SHA2_512);
+  typedef struct {
+    SHA_WORD_TYPE(SHA2_224) words[SHA_WORDS_IN_HASH(SHA2_224)];
+  } sha_224_t;
+  typedef struct {
+    SHA_WORD_TYPE(SHA2_256) words[SHA_WORDS_IN_HASH(SHA2_256)];
+  } sha_256_t;
+  typedef struct {
+    SHA_WORD_TYPE(SHA2_384) words[SHA_WORDS_IN_HASH(SHA2_384)];
+  } sha_384_t;
+  typedef struct {
+    SHA_WORD_TYPE(SHA2_512) words[SHA_WORDS_IN_HASH(SHA2_512)];
+  } sha_512_t;
 
   // Byte Types
   // SHA 1
   typedef struct {
-    uint8_t bytes[SHA2_HASH_SIZE(SHA1) / 8];
+    uint8_t bytes[SHA_HASH_SIZE(SHA1) / 8];
   } sha1_bytes_t;
   // SHA 2/3
   typedef struct {
-    uint8_t bytes[SHA2_HASH_SIZE(SHA2_224) / 8];
+    uint8_t bytes[SHA_HASH_SIZE(SHA2_224) / 8];
   } sha_224_bytes_t;
   typedef struct {
-    uint8_t bytes[SHA2_HASH_SIZE(SHA2_256) / 8];
+    uint8_t bytes[SHA_HASH_SIZE(SHA2_256) / 8];
   } sha_256_bytes_t;
   typedef struct {
-    uint8_t bytes[SHA2_HASH_SIZE(SHA2_384) / 8];
+    uint8_t bytes[SHA_HASH_SIZE(SHA2_384) / 8];
   } sha_384_bytes_t;
   typedef struct {
-    uint8_t bytes[SHA2_HASH_SIZE(SHA2_512) / 8];
+    uint8_t bytes[SHA_HASH_SIZE(SHA2_512) / 8];
   } sha_512_bytes_t;
 
   // Contexts
@@ -488,7 +503,7 @@ extern "C" {
   // ---------------------
   // Constants
   // ---------------------
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   static SHA_WORD_TYPE(SHA1) sha1_K(size_t t)
   {
     if (t < 20) return 0x5a827999;
@@ -497,10 +512,10 @@ extern "C" {
     else if (t < 80) return 0xca62c1d6;
     else SHA_ASSERT(false, "t out of range 0-79");
   }
-#endif // SHA_2_IMPLEMENTATION
+#endif // SHA_IMPLEMENTATION
 
-#ifdef SHA_2_IMPLEMENTATION
-  static _SHA2_WORD_TYPE(32) SHA2_CONST_224_256[] = {
+#ifdef SHA_IMPLEMENTATION
+  static _SHA_WORD_TYPE(32) SHA2_CONST_224_256[] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01,
     0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
     0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
@@ -509,10 +524,10 @@ extern "C" {
     0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
   };
-#endif // SHA_2_IMPLEMENTATION
+#endif // SHA_IMPLEMENTATION
 
-#ifdef SHA_2_IMPLEMENTATION
-  static _SHA2_WORD_TYPE(64) SHA2_CONST_384_512[] = {
+#ifdef SHA_IMPLEMENTATION
+  static _SHA_WORD_TYPE(64) SHA2_CONST_384_512[] = {
     0x428a2f98d728ae22, 0x7137449123ef65cd, 0xb5c0fbcfec4d3b2f, 0xe9b5dba58189dbbc, 0x3956c25bf348b538, 0x59f111f1b605d019,
     0x923f82a4af194f9b, 0xab1c5ed5da6d8118, 0xd807aa98a3030242, 0x12835b0145706fbe, 0x243185be4ee4b28c, 0x550c7dc3d5ffb4e2,
     0x72be5d74f27b896f, 0x80deb1fe3b1696b1, 0x9bdc06a725c71235, 0xc19bf174cf692694, 0xe49b69c19ef14ad2, 0xefbe4786384f25e3,
@@ -528,47 +543,47 @@ extern "C" {
     0x28db77f523047d84, 0x32caab7b40c72493, 0x3c9ebe0a15c9bebc, 0x431d67c49c100d4c, 0x4cc5d4becb3e42b6, 0x597f299cfc657e2a,
     0x5fcb6fab3ad6faec, 0x6c44198c4a475817,
   };
-#endif // SHA_2_IMPLEMENTATION
+#endif // SHA_IMPLEMENTATION
 
   // Initial Hash Value
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   static SHA_WORD_TYPE(SHA1) SHA2_CONST_INITIAL_1[] = { 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0 };
 #endif
 
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   static SHA_WORD_TYPE(SHA2_224) SHA2_CONST_INITIAL_224[] = {
     0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4,
   };
 #endif
 
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   static SHA_WORD_TYPE(SHA2_256) SHA2_CONST_INITIAL_256[] = {
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
   };
 #endif
 
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   static SHA_WORD_TYPE(SHA2_384) SHA2_CONST_INITIAL_384[] = {
     0xcbbb9d5dc1059ed8, 0x629a292a367cd507, 0x9159015a3070dd17, 0x152fecd8f70e5939,
     0x67332667ffc00b31, 0x8eb44a8768581511, 0xdb0c2e0d64f98fa7, 0x47b5481dbefa4fa4,
   };
 #endif
 
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   static SHA_WORD_TYPE(SHA2_512) SHA2_CONST_INITIAL_512[] = {
     0x6a09e667f3bcc908, 0xbb67ae8584caa73b, 0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
     0x510e527fade682d1, 0x9b05688c2b3e6c1f, 0x1f83d9abfb41bd6b, 0x5be0cd19137e2179,
   };
 #endif
 
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   static SHA_WORD_TYPE(SHA2_512_224) SHA2_CONST_INITIAL_512_224[] = {
     0x8C3D37C819544DA2, 0x73E1996689DCD4D6, 0x1DFAB7AE32FF9C82, 0x679DD514582F9FCF,
     0x0F6D2B697BD44DA8, 0x77E36F7304C48942, 0x3F9D85A86A1D36C8, 0x1112E6AD91D692A1,
   };
 #endif
 
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   static SHA_WORD_TYPE(SHA2_512_256) SHA2_CONST_INITIAL_512_256[] = {
     0x22312194FC2BF72C, 0x9F555FA3C84C64C2, 0x2393B86B6F53B151, 0x963877195940EABD,
     0x96283EE2A88EFFE3, 0xBE5E1E2553863992, 0x2B0199FC2C85B8AA, 0x0EB72DDC81C52CA2,
@@ -582,7 +597,7 @@ extern "C" {
 // ------------------
 // Context reset
 // ------------------
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   // SHA 1
   SHA_DEF void sha1_reset(sha1_ctx* ctx)
   {
@@ -592,7 +607,7 @@ extern "C" {
     ctx->block_count = 0;
     ctx->bit_count   = 0;
     // TODO: When removing this set, have to change |= in append_bits
-    SHA2_MEMSET(ctx->block.bytes, 0, SHA2_BLOCK_SIZE(SHA2_224) / 8);
+    SHA_MEMSET(ctx->block.bytes, 0, SHA_BLOCK_SIZE(SHA2_224) / 8);
   }
   // SHA 2
   SHA_DEF void sha2_224_reset(sha2_256_ctx* ctx)
@@ -602,7 +617,7 @@ extern "C" {
     }
     ctx->block_count = 0;
     ctx->bit_count   = 0;
-    SHA2_MEMSET(ctx->block.bytes, 0, SHA2_BLOCK_SIZE(SHA2_224) / 8);
+    SHA_MEMSET(ctx->block.bytes, 0, SHA_BLOCK_SIZE(SHA2_224) / 8);
   }
   SHA_DEF void sha2_256_reset(sha2_256_ctx* ctx)
   {
@@ -611,7 +626,7 @@ extern "C" {
     }
     ctx->block_count = 0;
     ctx->bit_count   = 0;
-    SHA2_MEMSET(ctx->block.bytes, 0, SHA2_BLOCK_SIZE(SHA2_256) / 8);
+    SHA_MEMSET(ctx->block.bytes, 0, SHA_BLOCK_SIZE(SHA2_256) / 8);
   }
   SHA_DEF void sha2_384_reset(sha2_512_ctx* ctx)
   {
@@ -621,7 +636,7 @@ extern "C" {
     ctx->block_count_low  = 0;
     ctx->block_count_high = 0;
     ctx->bit_count        = 0;
-    SHA2_MEMSET(ctx->block.bytes, 0, SHA2_BLOCK_SIZE(SHA2_384) / 8);
+    SHA_MEMSET(ctx->block.bytes, 0, SHA_BLOCK_SIZE(SHA2_384) / 8);
   }
   SHA_DEF void sha2_512_reset(sha2_512_ctx* ctx)
   {
@@ -631,7 +646,7 @@ extern "C" {
     ctx->block_count_low  = 0;
     ctx->block_count_high = 0;
     ctx->bit_count        = 0;
-    SHA2_MEMSET(ctx->block.bytes, 0, SHA2_BLOCK_SIZE(SHA2_512) / 8);
+    SHA_MEMSET(ctx->block.bytes, 0, SHA_BLOCK_SIZE(SHA2_512) / 8);
   }
   SHA_DEF void sha2_512_224_reset(sha2_512_ctx* ctx)
   {
@@ -641,7 +656,7 @@ extern "C" {
     ctx->block_count_low  = 0;
     ctx->block_count_high = 0;
     ctx->bit_count        = 0;
-    SHA2_MEMSET(ctx->block.bytes, 0, SHA2_BLOCK_SIZE(SHA2_512) / 8);
+    SHA_MEMSET(ctx->block.bytes, 0, SHA_BLOCK_SIZE(SHA2_512) / 8);
   }
   SHA_DEF void sha2_512_256_reset(sha2_512_ctx* ctx)
   {
@@ -651,63 +666,63 @@ extern "C" {
     ctx->block_count_low  = 0;
     ctx->block_count_high = 0;
     ctx->bit_count        = 0;
-    SHA2_MEMSET(ctx->block.bytes, 0, SHA2_BLOCK_SIZE(SHA2_512) / 8);
+    SHA_MEMSET(ctx->block.bytes, 0, SHA_BLOCK_SIZE(SHA2_512) / 8);
   }
   // SHA 3
   SHA_DEF void sha3_224_reset(sha3_ctx* ctx)
   {
-    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
-    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    SHA_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
     ctx->bit_count = 0;
     ctx->d         = 224;
     ctx->r         = 1600 - 448;
   }
   SHA_DEF void sha3_256_reset(sha3_ctx* ctx)
   {
-    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
-    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    SHA_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
     ctx->bit_count = 0;
     ctx->d         = 256;
     ctx->r         = 1600 - 512;
   }
   SHA_DEF void sha3_384_reset(sha3_ctx* ctx)
   {
-    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
-    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    SHA_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
     ctx->bit_count = 0;
     ctx->d         = 384;
     ctx->r         = 1600 - 768;
   }
   SHA_DEF void sha3_512_reset(sha3_ctx* ctx)
   {
-    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
-    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    SHA_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
     ctx->bit_count = 0;
     ctx->d         = 512;
     ctx->r         = 1600 - 1024;
   }
   SHA_DEF void sha3_shake128_reset(sha3_ctx* ctx, unsigned int hash_bit_count)
   {
-    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
-    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    SHA_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
     ctx->bit_count = 0;
     ctx->d         = hash_bit_count;
     ctx->r         = 1600 - 256;
   }
   SHA_DEF void sha3_shake256_reset(sha3_ctx* ctx, unsigned int hash_bit_count)
   {
-    SHA2_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
-    SHA2_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
+    SHA_MEMSET(ctx->state.bytes, 0, sizeof(ctx->state.bytes));
+    SHA_MEMSET(ctx->pi.bytes, 0, sizeof(ctx->pi.bytes));
     ctx->bit_count = 0;
     ctx->d         = hash_bit_count;
     ctx->r         = 1600 - 512;
   }
-#endif // SHA_2_IMPLEMENTATION
+#endif // SHA_IMPLEMENTATION
 
 // ---------------------
 // Append
 // ---------------------
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   // SHA 1
   static void _sha1_hash_block_base(sha1_ctx* ctx, sha2_block_256_t* block_optional)
   {
@@ -718,10 +733,10 @@ extern "C" {
       // Init W state
       for (size_t t = 0; t < 16; t++) { W[t] = SHA2_BYTE_SWAP_IF_LITTLE(SHA1, block->words[t]); }
       for (size_t t = 16; t < 80; t++) {
-        SHA_WORD_TYPE(SHA1) xor1 = SHA2_XOR(SHA2_WORD_SIZE(SHA1), W[t - 3], W[t - 8]);
-        SHA_WORD_TYPE(SHA1) xor2 = SHA2_XOR(SHA2_WORD_SIZE(SHA1), W[t - 14], W[t - 16]);
-        xor1                     = SHA2_XOR(SHA2_WORD_SIZE(SHA1), xor1, xor2);
-        W[t]                     = SHA2_ROTL(SHA2_WORD_SIZE(SHA1), xor1, 1);
+        SHA_WORD_TYPE(SHA1) xor1 = SHA_XOR(SHA_WORD_SIZE(SHA1), W[t - 3], W[t - 8]);
+        SHA_WORD_TYPE(SHA1) xor2 = SHA_XOR(SHA_WORD_SIZE(SHA1), W[t - 14], W[t - 16]);
+        xor1                     = SHA_XOR(SHA_WORD_SIZE(SHA1), xor1, xor2);
+        W[t]                     = SHA_ROTL(SHA_WORD_SIZE(SHA1), xor1, 1);
       }
     }
 
@@ -732,8 +747,8 @@ extern "C" {
     }
 
     for (size_t t = 0; t < 80; t++) {
-      const SHA_WORD_TYPE(SHA1) T = SHA2_ROTL(SHA2_WORD_SIZE(SHA1), a, 5) + SHA1_F(t, b, c, d) + e + sha1_K(t) + W[t];
-      (e = d, d = c, c = SHA2_ROTL(SHA2_WORD_SIZE(SHA1), b, 30), b = a, a = T);
+      const SHA_WORD_TYPE(SHA1) T = SHA_ROTL(SHA_WORD_SIZE(SHA1), a, 5) + SHA1_F(t, b, c, d) + e + sha1_K(t) + W[t];
+      (e = d, d = c, c = SHA_ROTL(SHA_WORD_SIZE(SHA1), b, 30), b = a, a = T);
     }
 
     {
@@ -960,18 +975,18 @@ extern "C" {
       bytes[byte_index]       = (bytes[byte_index] & null_mask) | set_mask;
     }
     // Null leftover
-    if (byte_index < (SHA2_BLOCK_SIZE(SHA1) / 8) - 1) {
-      SHA2_MEMSET(bytes + byte_index + 1, 0, (SHA2_BLOCK_SIZE(SHA1) / 8) - (byte_index + 1));
+    if (byte_index < (SHA_BLOCK_SIZE(SHA1) / 8) - 1) {
+      SHA_MEMSET(bytes + byte_index + 1, 0, (SHA_BLOCK_SIZE(SHA1) / 8) - (byte_index + 1));
     }
     // Check if len fits in rest of block
-    if (byte_index >= (SHA2_BLOCK_SIZE(SHA1) - 64) / 8) {
-      ctx->bit_count = SHA2_BLOCK_SIZE(SHA1);
+    if (byte_index >= (SHA_BLOCK_SIZE(SHA1) - 64) / 8) {
+      ctx->bit_count = SHA_BLOCK_SIZE(SHA1);
       _sha1_hash_block(ctx, NULL);
-      SHA2_MEMSET(bytes, 0, (SHA2_BLOCK_SIZE(SHA2_256) - 64) / 8);
+      SHA_MEMSET(bytes, 0, (SHA_BLOCK_SIZE(SHA2_256) - 64) / 8);
     }
     // Set length
     ctx->block.sizes[7] = SHA2_BYTE_SWAP_IF_LITTLE_WS(64, bits_total);
-    ctx->bit_count      = SHA2_BLOCK_SIZE(SHA1);
+    ctx->bit_count      = SHA_BLOCK_SIZE(SHA1);
   }
   SHA_DEF void sha1_append_bytes(sha1_ctx* ctx, const uint8_t* data, uint64_t byte_count)
   {
@@ -979,19 +994,19 @@ extern "C" {
 
     // Fill started block
     if (ctx->bit_count > 0) {
-      const size_t missing_byte_count = (SHA2_BLOCK_SIZE(SHA1) - ctx->bit_count) / 8;
-      const size_t copy_byte_count    = SHA2_MIN(missing_byte_count, byte_count);
+      const size_t missing_byte_count = (SHA_BLOCK_SIZE(SHA1) - ctx->bit_count) / 8;
+      const size_t copy_byte_count    = SHA_MIN(missing_byte_count, byte_count);
       SHA_MEMCPY(ctx->block.bytes + (ctx->bit_count / 8), data, copy_byte_count);
       data           += copy_byte_count;
       byte_count     -= copy_byte_count;
       ctx->bit_count += copy_byte_count * 8;
-      if (ctx->bit_count == SHA2_BLOCK_SIZE(SHA1)) _sha1_hash_block(ctx, NULL);
+      if (ctx->bit_count == SHA_BLOCK_SIZE(SHA1)) _sha1_hash_block(ctx, NULL);
     }
 
     // Do full blocks
-    const uint8_t bytes_in_block = SHA2_BLOCK_SIZE(SHA1) / 8;
+    const uint8_t bytes_in_block = SHA_BLOCK_SIZE(SHA1) / 8;
     while (byte_count >= bytes_in_block) {
-      ctx->bit_count = SHA2_BLOCK_SIZE(SHA1);
+      ctx->bit_count = SHA_BLOCK_SIZE(SHA1);
       _sha1_hash_block(ctx, (sha2_block_256_t*)data);
       data       += bytes_in_block;
       byte_count -= bytes_in_block;
@@ -1022,12 +1037,12 @@ extern "C" {
       // Set rest of current byte
       const uint8_t bits_in_data_byte  = bit_count >= 8 ? 8 : bit_count;
       ctx->block.bytes[byte_index]    |= (byte & ~(0xFF >> bits_in_data_byte)) >> bits_in_byte;
-      const uint8_t added_bit_count    = SHA2_MIN(missing_bit_count, bits_in_data_byte);
+      const uint8_t added_bit_count    = SHA_MIN(missing_bit_count, bits_in_data_byte);
       ctx->bit_count                  += added_bit_count;
 
       // Set start of next byte
       size_t byte_index_next = byte_index + 1;
-      if (ctx->bit_count >= SHA2_BLOCK_SIZE(SHA1)) {
+      if (ctx->bit_count >= SHA_BLOCK_SIZE(SHA1)) {
         _sha1_hash_block(ctx, NULL);
         byte_index_next = 0;
       }
@@ -1071,8 +1086,8 @@ extern "C" {
       // Init W state
       for (size_t t = 0; t < 16; t++) { W[t] = SHA2_BYTE_SWAP_IF_LITTLE(SHA2_256, block->words[t]); }
       for (size_t t = 16; t < 64; t++) {
-        const SHA_WORD_TYPE(SHA2_256) sigma_1 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_256), W[t - 2], 17, 19, 10);
-        const SHA_WORD_TYPE(SHA2_256) sigma_0 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_256), W[t - 15], 7, 18, 3);
+        const SHA_WORD_TYPE(SHA2_256) sigma_1 = SHA2_SIGMA_SMALL(SHA_WORD_SIZE(SHA2_256), W[t - 2], 17, 19, 10);
+        const SHA_WORD_TYPE(SHA2_256) sigma_0 = SHA2_SIGMA_SMALL(SHA_WORD_SIZE(SHA2_256), W[t - 15], 7, 18, 3);
         W[t]                                  = sigma_1 + W[t - 7] + sigma_0 + W[t - 16];
       }
     }
@@ -1084,10 +1099,10 @@ extern "C" {
     }
 
     for (size_t t = 0; t < 64; t++) {
-      const SHA_WORD_TYPE(SHA2_256) sigma_1 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_256), e, 6, 11, 25);
-      const SHA_WORD_TYPE(SHA2_256) sigma_0 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_256), a, 2, 13, 22);
-      const SHA_WORD_TYPE(SHA2_256) ch      = SHA2_CH(SHA2_WORD_SIZE(SHA2_256), e, f, g);
-      const SHA_WORD_TYPE(SHA2_256) maj     = SHA2_MAJ(SHA2_WORD_SIZE(SHA2_256), a, b, c);
+      const SHA_WORD_TYPE(SHA2_256) sigma_1 = SHA2_SIGMA_LARGE(SHA_WORD_SIZE(SHA2_256), e, 6, 11, 25);
+      const SHA_WORD_TYPE(SHA2_256) sigma_0 = SHA2_SIGMA_LARGE(SHA_WORD_SIZE(SHA2_256), a, 2, 13, 22);
+      const SHA_WORD_TYPE(SHA2_256) ch      = SHA2_CH(SHA_WORD_SIZE(SHA2_256), e, f, g);
+      const SHA_WORD_TYPE(SHA2_256) maj     = SHA2_MAJ(SHA_WORD_SIZE(SHA2_256), a, b, c);
       const SHA_WORD_TYPE(SHA2_256) T1      = h + sigma_1 + ch + SHA2_CONST_224_256[t] + W[t];
       const SHA_WORD_TYPE(SHA2_256) T2      = sigma_0 + maj;
       (h = g, g = f, f = e, e = d + T1, d = c, c = b, b = a, a = T1 + T2);
@@ -1330,18 +1345,18 @@ extern "C" {
       bytes[byte_index]       = (bytes[byte_index] & null_mask) | set_mask;
     }
     // Null leftover
-    if (byte_index < (SHA2_BLOCK_SIZE(SHA2_256) / 8) - 1) {
-      SHA2_MEMSET(bytes + byte_index + 1, 0, (SHA2_BLOCK_SIZE(SHA2_256) / 8) - (byte_index + 1));
+    if (byte_index < (SHA_BLOCK_SIZE(SHA2_256) / 8) - 1) {
+      SHA_MEMSET(bytes + byte_index + 1, 0, (SHA_BLOCK_SIZE(SHA2_256) / 8) - (byte_index + 1));
     }
     // Check if len fits in rest of block
-    if (byte_index >= (SHA2_BLOCK_SIZE(SHA2_256) - 64) / 8) {
-      ctx->bit_count = SHA2_BLOCK_SIZE(SHA2_256);
+    if (byte_index >= (SHA_BLOCK_SIZE(SHA2_256) - 64) / 8) {
+      ctx->bit_count = SHA_BLOCK_SIZE(SHA2_256);
       _sha2_256_hash_block(ctx, NULL);
-      SHA2_MEMSET(bytes, 0, (SHA2_BLOCK_SIZE(SHA2_256) - 64) / 8);
+      SHA_MEMSET(bytes, 0, (SHA_BLOCK_SIZE(SHA2_256) - 64) / 8);
     }
     // Set length
     ctx->block.sizes[7] = SHA2_BYTE_SWAP_IF_LITTLE_WS(64, bits_total);
-    ctx->bit_count      = SHA2_BLOCK_SIZE(SHA2_256);
+    ctx->bit_count      = SHA_BLOCK_SIZE(SHA2_256);
   }
   SHA_DEF void sha2_256_append_bytes(sha2_256_ctx* ctx, const uint8_t* data, uint64_t byte_count)
   {
@@ -1349,20 +1364,20 @@ extern "C" {
 
     // Fill started block
     if (ctx->bit_count > 0) {
-      const size_t missing_byte_count = (SHA2_BLOCK_SIZE(SHA2_256) - ctx->bit_count) / 8;
-      const size_t copy_byte_count    = SHA2_MIN(missing_byte_count, byte_count);
+      const size_t missing_byte_count = (SHA_BLOCK_SIZE(SHA2_256) - ctx->bit_count) / 8;
+      const size_t copy_byte_count    = SHA_MIN(missing_byte_count, byte_count);
       SHA_MEMCPY(ctx->block.bytes + (ctx->bit_count / 8), data, copy_byte_count);
       data           += copy_byte_count;
       byte_count     -= copy_byte_count;
       ctx->bit_count += copy_byte_count * 8;
-      if (ctx->bit_count == SHA2_BLOCK_SIZE(SHA2_256)) _sha2_256_hash_block(ctx, NULL);
+      if (ctx->bit_count == SHA_BLOCK_SIZE(SHA2_256)) _sha2_256_hash_block(ctx, NULL);
     }
 
     // Do full blocks
-    const uint8_t bytes_in_block = SHA2_BLOCK_SIZE(SHA2_256) / 8;
+    const uint8_t bytes_in_block = SHA_BLOCK_SIZE(SHA2_256) / 8;
     while (byte_count >= bytes_in_block) {
       // SHA_MEMCPY(ctx->block.bytes, data, bytes_in_block);
-      ctx->bit_count = SHA2_BLOCK_SIZE(SHA2_256);
+      ctx->bit_count = SHA_BLOCK_SIZE(SHA2_256);
       _sha2_256_hash_block(ctx, (sha2_block_256_t*)data);
       data       += bytes_in_block;
       byte_count -= bytes_in_block;
@@ -1393,12 +1408,12 @@ extern "C" {
       // Set rest of current byte
       const uint8_t bits_in_data_byte  = bit_count >= 8 ? 8 : bit_count;
       ctx->block.bytes[byte_index]    |= (byte & ~(0xFF >> bits_in_data_byte)) >> bits_in_byte;
-      const uint8_t added_bit_count    = SHA2_MIN(missing_bit_count, bits_in_data_byte);
+      const uint8_t added_bit_count    = SHA_MIN(missing_bit_count, bits_in_data_byte);
       ctx->bit_count                  += added_bit_count;
 
       // Set start of next byte
       size_t byte_index_next = byte_index + 1;
-      if (ctx->bit_count >= SHA2_BLOCK_SIZE(SHA2_256)) {
+      if (ctx->bit_count >= SHA_BLOCK_SIZE(SHA2_256)) {
         _sha2_256_hash_block(ctx, NULL);
         byte_index_next = 0;
       }
@@ -1424,8 +1439,8 @@ extern "C" {
       // Init W state
       for (size_t t = 0; t < 16; t++) { W[t] = SHA2_BYTE_SWAP_IF_LITTLE(SHA2_512, block->words[t]); }
       for (size_t t = 16; t < 80; t++) {
-        const SHA_WORD_TYPE(SHA2_512) sigma_1 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_512), W[t - 2], 19, 61, 6);
-        const SHA_WORD_TYPE(SHA2_512) sigma_0 = SHA2_SIGMA_SMALL(SHA2_WORD_SIZE(SHA2_512), W[t - 15], 1, 8, 7);
+        const SHA_WORD_TYPE(SHA2_512) sigma_1 = SHA2_SIGMA_SMALL(SHA_WORD_SIZE(SHA2_512), W[t - 2], 19, 61, 6);
+        const SHA_WORD_TYPE(SHA2_512) sigma_0 = SHA2_SIGMA_SMALL(SHA_WORD_SIZE(SHA2_512), W[t - 15], 1, 8, 7);
         W[t]                                  = sigma_1 + W[t - 7] + sigma_0 + W[t - 16];
       }
     }
@@ -1437,10 +1452,10 @@ extern "C" {
     }
 
     for (size_t t = 0; t < 80; t++) {
-      const SHA_WORD_TYPE(SHA2_512) sigma_1 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_512), e, 14, 18, 41);
-      const SHA_WORD_TYPE(SHA2_512) sigma_0 = SHA2_SIGMA_LARGE(SHA2_WORD_SIZE(SHA2_512), a, 28, 34, 39);
-      const SHA_WORD_TYPE(SHA2_512) ch      = SHA2_CH(SHA2_WORD_SIZE(SHA2_512), e, f, g);
-      const SHA_WORD_TYPE(SHA2_512) maj     = SHA2_MAJ(SHA2_WORD_SIZE(SHA2_512), a, b, c);
+      const SHA_WORD_TYPE(SHA2_512) sigma_1 = SHA2_SIGMA_LARGE(SHA_WORD_SIZE(SHA2_512), e, 14, 18, 41);
+      const SHA_WORD_TYPE(SHA2_512) sigma_0 = SHA2_SIGMA_LARGE(SHA_WORD_SIZE(SHA2_512), a, 28, 34, 39);
+      const SHA_WORD_TYPE(SHA2_512) ch      = SHA2_CH(SHA_WORD_SIZE(SHA2_512), e, f, g);
+      const SHA_WORD_TYPE(SHA2_512) maj     = SHA2_MAJ(SHA_WORD_SIZE(SHA2_512), a, b, c);
       const SHA_WORD_TYPE(SHA2_512) T1      = h + sigma_1 + ch + SHA2_CONST_384_512[t] + W[t];
       const SHA_WORD_TYPE(SHA2_512) T2      = sigma_0 + maj;
       (h = g, g = f, f = e, e = d + T1, d = c, c = b, b = a, a = T1 + T2);
@@ -1479,19 +1494,19 @@ extern "C" {
       bytes[byte_index]       = (bytes[byte_index] & null_mask) | set_mask;
     }
     // Null leftover
-    if (byte_index < (SHA2_BLOCK_SIZE(SHA2_512) / 8) - 1) {
-      SHA2_MEMSET(bytes + byte_index + 1, 0, (SHA2_BLOCK_SIZE(SHA2_512) / 8) - (byte_index + 1));
+    if (byte_index < (SHA_BLOCK_SIZE(SHA2_512) / 8) - 1) {
+      SHA_MEMSET(bytes + byte_index + 1, 0, (SHA_BLOCK_SIZE(SHA2_512) / 8) - (byte_index + 1));
     }
     // Check if len fits in rest of block
-    if (byte_index >= (SHA2_BLOCK_SIZE(SHA2_512) - 128) / 8) {
-      ctx->bit_count = SHA2_BLOCK_SIZE(SHA2_512);
+    if (byte_index >= (SHA_BLOCK_SIZE(SHA2_512) - 128) / 8) {
+      ctx->bit_count = SHA_BLOCK_SIZE(SHA2_512);
       _sha2_512_hash_block(ctx, NULL);
-      SHA2_MEMSET(bytes, 0, (SHA2_BLOCK_SIZE(SHA2_512) - 128) / 8);
+      SHA_MEMSET(bytes, 0, (SHA_BLOCK_SIZE(SHA2_512) - 128) / 8);
     }
     // Set Length
-    ctx->block.words[SHA2_WORDS_IN_BLOCK(SHA2_512) - 1] = SHA2_BYTE_SWAP_IF_LITTLE_WS(64, bits_total_l);
-    ctx->block.words[SHA2_WORDS_IN_BLOCK(SHA2_512) - 2] = SHA2_BYTE_SWAP_IF_LITTLE_WS(64, bits_total_h);
-    ctx->bit_count                                      = SHA2_BLOCK_SIZE(SHA2_512);
+    ctx->block.words[SHA_WORDS_IN_BLOCK(SHA2_512) - 1] = SHA2_BYTE_SWAP_IF_LITTLE_WS(64, bits_total_l);
+    ctx->block.words[SHA_WORDS_IN_BLOCK(SHA2_512) - 2] = SHA2_BYTE_SWAP_IF_LITTLE_WS(64, bits_total_h);
+    ctx->bit_count                                     = SHA_BLOCK_SIZE(SHA2_512);
   }
   SHA_DEF void sha2_512_append_bytes(sha2_512_ctx* ctx, const uint8_t* data, uint64_t byte_count)
   {
@@ -1499,19 +1514,19 @@ extern "C" {
 
     // Fill started block
     if (ctx->bit_count > 0) {
-      const size_t missing_byte_count = (SHA2_BLOCK_SIZE(SHA2_512) - ctx->bit_count) / 8;
-      const size_t copy_byte_count    = SHA2_MIN(missing_byte_count, byte_count);
+      const size_t missing_byte_count = (SHA_BLOCK_SIZE(SHA2_512) - ctx->bit_count) / 8;
+      const size_t copy_byte_count    = SHA_MIN(missing_byte_count, byte_count);
       SHA_MEMCPY(ctx->block.bytes + (ctx->bit_count / 8), data, copy_byte_count);
       data           += copy_byte_count;
       byte_count     -= copy_byte_count;
       ctx->bit_count += copy_byte_count * 8;
-      if (ctx->bit_count == SHA2_BLOCK_SIZE(SHA2_512)) _sha2_512_hash_block(ctx, NULL);
+      if (ctx->bit_count == SHA_BLOCK_SIZE(SHA2_512)) _sha2_512_hash_block(ctx, NULL);
     }
 
     // Do full blocks
-    const size_t bytes_in_block = SHA2_BLOCK_SIZE(SHA2_512) / 8;
+    const size_t bytes_in_block = SHA_BLOCK_SIZE(SHA2_512) / 8;
     while (byte_count >= bytes_in_block) {
-      ctx->bit_count = SHA2_BLOCK_SIZE(SHA2_512);
+      ctx->bit_count = SHA_BLOCK_SIZE(SHA2_512);
       _sha2_512_hash_block(ctx, (sha2_block_512_t*)data);
       data       += bytes_in_block;
       byte_count -= bytes_in_block;
@@ -1543,12 +1558,12 @@ extern "C" {
       // Set rest of current byte
       const uint8_t bits_in_data_byte  = bit_count >= 8 ? 8 : bit_count;
       ctx->block.bytes[byte_index]    |= (byte & ~(0xFF >> bits_in_data_byte)) >> bits_in_byte;
-      const uint8_t added_bit_count    = SHA2_MIN(missing_bit_count, bits_in_data_byte);
+      const uint8_t added_bit_count    = SHA_MIN(missing_bit_count, bits_in_data_byte);
       ctx->bit_count                  += added_bit_count;
 
       // Hash if was last byte in block
       size_t byte_index_next = byte_index + 1;
-      if (ctx->bit_count >= SHA2_BLOCK_SIZE(SHA2_512)) {
+      if (ctx->bit_count >= SHA_BLOCK_SIZE(SHA2_512)) {
         _sha2_512_hash_block(ctx, NULL);
         byte_index_next = 0;
       }
@@ -1589,18 +1604,18 @@ extern "C" {
     uint8_t* s = ctx->state.bytes;
     uint64_t C[5];
     for (unsigned int x = 0; x < 5; x++) {
-      C[x] = SHA2_XOR(64, SHA3_STATE_TO_SA(s, x, 0), SHA3_STATE_TO_SA(s, x, 1));
-      C[x] = SHA2_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 2));
-      C[x] = SHA2_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 3));
-      C[x] = SHA2_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 4));
+      C[x] = SHA_XOR(64, SHA3_STATE_TO_SA(s, x, 0), SHA3_STATE_TO_SA(s, x, 1));
+      C[x] = SHA_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 2));
+      C[x] = SHA_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 3));
+      C[x] = SHA_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 4));
     }
 
     // uint64_t D[5];
     for (unsigned int x = 0; x < 5; x++) {
-      uint64_t d_x = SHA2_ROTL(64, C[(x + 1) % 5], 1);
-      d_x          = SHA2_XOR(64, C[(x + 4) % 5], d_x); // (x + 4) % 5 = (x - 1) mod 5
+      uint64_t d_x = SHA_ROTL(64, C[(x + 1) % 5], 1);
+      d_x          = SHA_XOR(64, C[(x + 4) % 5], d_x); // (x + 4) % 5 = (x - 1) mod 5
 
-      for (unsigned int y = 0; y < 5; y++) { SHA3_STATE_TO_SA(s, x, y) = SHA2_XOR(64, SHA3_STATE_TO_SA(s, x, y), d_x); }
+      for (unsigned int y = 0; y < 5; y++) { SHA3_STATE_TO_SA(s, x, y) = SHA_XOR(64, SHA3_STATE_TO_SA(s, x, y), d_x); }
       // sha3_print_state(ctx, 0, "Theta:C");
     }
   }
@@ -1613,7 +1628,7 @@ extern "C" {
     for (unsigned int t = 0; t < 24; t++) {
       unsigned int n = (((t + 1) * (t + 2)) / 2) % 64;
       // printf("n=%u, x=%u, y=%u\n", n, x, y);
-      SHA3_STATE_TO_SA(bytes, x, y) = SHA2_ROTL(64, SHA3_STATE_TO_SA(bytes, x, y), n);
+      SHA3_STATE_TO_SA(bytes, x, y) = SHA_ROTL(64, SHA3_STATE_TO_SA(bytes, x, y), n);
       //
       ty = y;
       y  = (2 * x + 3 * y) % 5;
@@ -1637,9 +1652,9 @@ extern "C" {
     uint8_t*     bytes  = ctx->state.bytes;
     for (unsigned int y = 0; y < 5; y++) {
       for (unsigned int x = 0; x < 5; x++) {
-        uint64_t res                  = SHA2_NOT(64, SHA3_STATE_TO_SA(s_copy.bytes, (x + 1) % 5, y)); // XOR with 1 equals not
-        res                           = SHA2_AND(64, res, SHA3_STATE_TO_SA(s_copy.bytes, (x + 2) % 5, y));
-        SHA3_STATE_TO_SA(bytes, x, y) = SHA2_XOR(64, SHA3_STATE_TO_SA(s_copy.bytes, x, y), res);
+        uint64_t res                  = SHA_NOT(64, SHA3_STATE_TO_SA(s_copy.bytes, (x + 1) % 5, y)); // XOR with 1 equals not
+        res                           = SHA_AND(64, res, SHA3_STATE_TO_SA(s_copy.bytes, (x + 2) % 5, y));
+        SHA3_STATE_TO_SA(bytes, x, y) = SHA_XOR(64, SHA3_STATE_TO_SA(s_copy.bytes, x, y), res);
       }
     }
   }
@@ -1652,7 +1667,7 @@ extern "C" {
       0x000000008000808b, 0x800000000000008b, 0x8000000000008089, 0x8000000000008003, 0x8000000000008002, 0x8000000000000080,
       0x000000000000800a, 0x800000008000000a, 0x8000000080008081, 0x8000000000008080, 0x0000000080000001, 0x8000000080008008,
     };
-    SHA3_STATE_TO_SA(ctx->state.bytes, 0, 0) = SHA2_XOR(64, SHA3_STATE_TO_SA(ctx->state.bytes, 0, 0), RC[round_index]);
+    SHA3_STATE_TO_SA(ctx->state.bytes, 0, 0) = SHA_XOR(64, SHA3_STATE_TO_SA(ctx->state.bytes, 0, 0), RC[round_index]);
   }
   static void sha3_rnd(sha3_ctx* ctx, uint64_t round_index)
   {
@@ -1716,7 +1731,7 @@ extern "C" {
     for (unsigned int i = 0; i < word_count; i++) {
       const SHA_WORD_TYPE_64 v = ((SHA_WORD_TYPE_64*)data)[i];
       SHA_WORD_TYPE_64*      s = &((SHA_WORD_TYPE_64*)dest)[i];
-      *s                       = SHA2_XOR(64, *s, v);
+      *s                       = SHA_XOR(64, *s, v);
     }
     data += word_count / 8;
     dest += word_count / 8;
@@ -1724,7 +1739,7 @@ extern "C" {
     unsigned int byte_count = (ctx->r - (word_count * 64)) / 8;
     for (unsigned int i = 0; i < byte_count; i++) {
       const uint8_t v = data[i];
-      dest[i]         = SHA2_XOR(32, dest[i], v);
+      dest[i]         = SHA_XOR(32, dest[i], v);
     }
     data += byte_count;
     dest += byte_count;
@@ -1732,7 +1747,7 @@ extern "C" {
     unsigned int bit_count = (ctx->r - (word_count * 64)) - (byte_count * 8);
     if (bit_count > 0) {
       const uint8_t v = data[0] & ((1 << bit_count) - 1);
-      dest[0]         = SHA2_XOR(32, dest[0], v);
+      dest[0]         = SHA_XOR(32, dest[0], v);
     }
 
     // sha3_print_state(ctx, 0, "XOR'd state");
@@ -1747,7 +1762,7 @@ extern "C" {
     // Fill started block
     if (ctx->bit_count > 0) {
       const unsigned int missing_byte_count = (ctx->r - ctx->bit_count) / 8;
-      const unsigned int copy_byte_count    = SHA2_MIN(missing_byte_count, byte_count);
+      const unsigned int copy_byte_count    = SHA_MIN(missing_byte_count, byte_count);
       SHA_MEMCPY(ctx->pi.bytes + (ctx->bit_count / 8), data, copy_byte_count);
       data           += copy_byte_count;
       byte_count     -= copy_byte_count;
@@ -1790,7 +1805,7 @@ extern "C" {
 
       // Set rest of current byte
       uint8_t       bits_in_data_byte  = bit_count >= 8 ? 8 : bit_count;
-      const uint8_t added_bit_count    = SHA2_MIN(missing_bit_count, bits_in_data_byte);
+      const uint8_t added_bit_count    = SHA_MIN(missing_bit_count, bits_in_data_byte);
       const uint8_t data_byte_first    = data_byte & (((1 << added_bit_count)) - 1);
       const uint8_t zeroed_pi_byte     = (*py_byte) & ((1 << bits_in_byte) - 1);
       *py_byte                         = zeroed_pi_byte | (data_byte_first << bits_in_byte);
@@ -1815,16 +1830,16 @@ extern "C" {
   }
   SHA_DEF void sha3_append(sha3_ctx* ctx, const uint8_t* data, uint64_t bit_count) { sha3_append_bits(ctx, data, bit_count); }
 
-#endif // SHA_2_IMPLEMENTATION
+#endif // SHA_IMPLEMENTATION
 
   // -------------------
   // Get Hash
   // -------------------
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   // SHA 1
   SHA_DEF void sha1_get_hash(sha1_ctx* ctx, sha1_t* hash_out)
   {
-    const uint64_t total_bits = ctx->block_count * SHA2_BLOCK_SIZE(SHA1) + ctx->bit_count;
+    const uint64_t total_bits = ctx->block_count * SHA_BLOCK_SIZE(SHA1) + ctx->bit_count;
     _sha1_pad_block(ctx, ctx->bit_count, total_bits);
     _sha1_hash_block(ctx, NULL);
     if (hash_out != NULL) {
@@ -1837,7 +1852,7 @@ extern "C" {
   // SHA 2
   SHA_DEF void sha2_224_get_hash(sha2_256_ctx* ctx, sha_224_t* hash_out)
   {
-    const uint64_t total_bits = ctx->block_count * SHA2_BLOCK_SIZE(SHA2_256) + ctx->bit_count;
+    const uint64_t total_bits = ctx->block_count * SHA_BLOCK_SIZE(SHA2_256) + ctx->bit_count;
     _sha2_256_pad_block(ctx, ctx->bit_count, total_bits);
     _sha2_256_hash_block(ctx, NULL);
     if (hash_out != NULL) {
@@ -1849,7 +1864,7 @@ extern "C" {
   }
   SHA_DEF void sha2_256_get_hash(sha2_256_ctx* ctx, sha_256_t* hash_out)
   {
-    const uint64_t total_bits = ctx->block_count * SHA2_BLOCK_SIZE(SHA2_256) + ctx->bit_count;
+    const uint64_t total_bits = ctx->block_count * SHA_BLOCK_SIZE(SHA2_256) + ctx->bit_count;
     _sha2_256_pad_block(ctx, ctx->bit_count, total_bits);
     _sha2_256_hash_block(ctx, NULL);
     if (hash_out != NULL) *hash_out = ctx->hash;
@@ -1857,9 +1872,9 @@ extern "C" {
   }
   SHA_DEF void sha2_384_get_hash(sha2_512_ctx* ctx, sha_384_t* hash_out)
   {
-    static_assert(SHA2_BLOCK_SIZE(SHA2_384) == 1024, "Block size for SHA2_384 is expected to be 1024");
-    const uint64_t total_bits_low   = ctx->block_count_low * SHA2_BLOCK_SIZE(SHA2_384) + ctx->bit_count;
-    uint64_t       total_bits_high  = ctx->block_count_high * SHA2_BLOCK_SIZE(SHA2_384);
+    static_assert(SHA_BLOCK_SIZE(SHA2_384) == 1024, "Block size for SHA2_384 is expected to be 1024");
+    const uint64_t total_bits_low   = ctx->block_count_low * SHA_BLOCK_SIZE(SHA2_384) + ctx->bit_count;
+    uint64_t       total_bits_high  = ctx->block_count_high * SHA_BLOCK_SIZE(SHA2_384);
     total_bits_high                |= ctx->block_count_low >> (64 - 10); // 2^10 = 1024
     _sha2_512_pad_block(ctx, ctx->bit_count, total_bits_high, total_bits_low);
     _sha2_512_hash_block(ctx, NULL);
@@ -1872,9 +1887,9 @@ extern "C" {
   }
   SHA_DEF void sha2_512_get_hash(sha2_512_ctx* ctx, sha_512_t* hash_out)
   {
-    static_assert(SHA2_BLOCK_SIZE(SHA2_512) == 1024, "Block size for SHA2_512 is expected to be 1024");
-    const uint64_t total_bits_low   = ctx->block_count_low * SHA2_BLOCK_SIZE(SHA2_512) + ctx->bit_count;
-    uint64_t       total_bits_high  = ctx->block_count_high * SHA2_BLOCK_SIZE(SHA2_512);
+    static_assert(SHA_BLOCK_SIZE(SHA2_512) == 1024, "Block size for SHA2_512 is expected to be 1024");
+    const uint64_t total_bits_low   = ctx->block_count_low * SHA_BLOCK_SIZE(SHA2_512) + ctx->bit_count;
+    uint64_t       total_bits_high  = ctx->block_count_high * SHA_BLOCK_SIZE(SHA2_512);
     total_bits_high                |= ctx->block_count_low >> (64 - 10); // 2^10 = 1024
     _sha2_512_pad_block(ctx, ctx->bit_count, total_bits_high, total_bits_low);
     _sha2_512_hash_block(ctx, NULL);
@@ -1883,9 +1898,9 @@ extern "C" {
   }
   SHA_DEF void sha2_512_224_get_hash(sha2_512_ctx* ctx, sha_224_t* hash_out)
   {
-    static_assert(SHA2_BLOCK_SIZE(SHA2_512) == 1024, "Block size for SHA2_512 is expected to be 1024");
-    const uint64_t total_bits_low   = ctx->block_count_low * SHA2_BLOCK_SIZE(SHA2_512) + ctx->bit_count;
-    uint64_t       total_bits_high  = ctx->block_count_high * SHA2_BLOCK_SIZE(SHA2_512);
+    static_assert(SHA_BLOCK_SIZE(SHA2_512) == 1024, "Block size for SHA2_512 is expected to be 1024");
+    const uint64_t total_bits_low   = ctx->block_count_low * SHA_BLOCK_SIZE(SHA2_512) + ctx->bit_count;
+    uint64_t       total_bits_high  = ctx->block_count_high * SHA_BLOCK_SIZE(SHA2_512);
     total_bits_high                |= ctx->block_count_low >> (64 - 10); // 2^10 = 1024
     _sha2_512_pad_block(ctx, ctx->bit_count, total_bits_high, total_bits_low);
     _sha2_512_hash_block(ctx, NULL);
@@ -1901,9 +1916,9 @@ extern "C" {
   }
   SHA_DEF void sha2_512_256_get_hash(sha2_512_ctx* ctx, sha_256_t* hash_out)
   {
-    static_assert(SHA2_BLOCK_SIZE(SHA2_512) == 1024, "Block size for SHA2_512 is expected to be 1024");
-    const uint64_t total_bits_low   = ctx->block_count_low * SHA2_BLOCK_SIZE(SHA2_512) + ctx->bit_count;
-    uint64_t       total_bits_high  = ctx->block_count_high * SHA2_BLOCK_SIZE(SHA2_512);
+    static_assert(SHA_BLOCK_SIZE(SHA2_512) == 1024, "Block size for SHA2_512 is expected to be 1024");
+    const uint64_t total_bits_low   = ctx->block_count_low * SHA_BLOCK_SIZE(SHA2_512) + ctx->bit_count;
+    uint64_t       total_bits_high  = ctx->block_count_high * SHA_BLOCK_SIZE(SHA2_512);
     total_bits_high                |= ctx->block_count_low >> (64 - 10); // 2^10 = 1024
     _sha2_512_pad_block(ctx, ctx->bit_count, total_bits_high, total_bits_low);
     _sha2_512_hash_block(ctx, NULL);
@@ -1936,7 +1951,7 @@ extern "C" {
     unsigned int src_bit_count  = ctx->r;
     unsigned int src_byte_count = src_bit_count / 8;
     unsigned int cpy_byte_count = cpy_bit_count / 8;
-    unsigned int byte_count     = SHA2_MIN(src_byte_count, cpy_byte_count);
+    unsigned int byte_count     = SHA_MIN(src_byte_count, cpy_byte_count);
     SHA_MEMCPY(dest, src, byte_count);
     if (byte_count == src_byte_count) return src_bit_count; // Assume ctx->r is divisible by 8
 
@@ -2007,13 +2022,13 @@ extern "C" {
     sha3_get_hash(ctx, hash_out);
   }
 
-#endif // SHA_2_IMPLEMENTATION
+#endif // SHA_IMPLEMENTATION
 
 // --------------------
 // Words to bytes
 // Convert the normal sha2_xxx_t containing words, to sha2_xxx_bytes_t containing bytes
 // --------------------
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   // SHA 1
   SHA_DEF void sha1_to_bytes(sha1_t h, uint8_t* bytes_out)
   {
@@ -2066,12 +2081,12 @@ extern "C" {
       }
     }
   }
-#endif // SHA_2_IMPLEMENTATION
+#endif // SHA_IMPLEMENTATION
 
 // ------------------
 // Bytes to words
 // ------------------
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   // SHA 1
   SHA_DEF void sha1_from_bytes(uint8_t* bytes, sha1_t* hash_out)
   {
@@ -2124,12 +2139,12 @@ extern "C" {
       }
     }
   }
-#endif // SHA_2_IMPLEMENTATION
+#endif // SHA_IMPLEMENTATION
 
   // ------------------------
   // Compare
   // ------------------------
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   // SHA 1
   SHA_DEF bool sha1_is_equal(const sha1_t* a, const sha1_t* b)
   {
@@ -2167,12 +2182,12 @@ extern "C" {
     }
     return true;
   }
-#endif // SHA_2_IMPLEMENTATION
+#endif // SHA_IMPLEMENTATION
 
   // -------------------------
   // To String
   // -------------------------
-#ifdef SHA_2_IMPLEMENTATION
+#ifdef SHA_IMPLEMENTATION
   SHA_DEF void sha_byte_to_string(char* buf, uint8_t v, bool upper_case)
   {
     const char bits_low  = v & 0x0F;
@@ -2195,74 +2210,74 @@ extern "C" {
     buf[hash_size] = '\0';
   }
 
-  static void sha_word_32_to_hex_string(char* buf, bool upper_case, _SHA2_WORD_TYPE(32) v)
+  static void sha_word_32_to_hex_string(char* buf, bool upper_case, _SHA_WORD_TYPE(32) v)
   {
     for (int i = (32 / 8) - 1; i >= 0; i--) {
-      const uint8_t byte = SHA2_AND(32, v, 0xFF);
+      const uint8_t byte = SHA_AND(32, v, 0xFF);
       sha_byte_to_string(buf + i * 2, byte, upper_case);
-      v = SHA2_SHR(32, v, 8);
+      v = SHA_SHR(32, v, 8);
     }
   }
-  static void sha_word_64_to_hex_string(char* buf, bool upper_case, _SHA2_WORD_TYPE(64) v)
+  static void sha_word_64_to_hex_string(char* buf, bool upper_case, _SHA_WORD_TYPE(64) v)
   {
     for (int i = (64 / 8) - 1; i >= 0; i--) {
-      const uint8_t byte = SHA2_AND(64, v, 0xFF);
+      const uint8_t byte = SHA_AND(64, v, 0xFF);
       sha_byte_to_string(buf + i * 2, byte, upper_case);
-      v = SHA2_SHR(64, v, 8);
+      v = SHA_SHR(64, v, 8);
     }
   }
 
   // SHA 1
   SHA_DEF const char* sha1_to_string(const sha1_t* h, bool upper_case)
   {
-    static char buf[(SHA2_HASH_SIZE(SHA1) / 4) + 1]; // 4bits per char
+    static char buf[(SHA_HASH_SIZE(SHA1) / 4) + 1]; // 4bits per char
     for (size_t i = 0; i < sizeof(h->words) / sizeof(*h->words); i++) {
       sha_word_32_to_hex_string(buf + i * 8, upper_case, h->words[i]);
     }
-    buf[SHA2_HASH_SIZE(SHA1) / 4] = '\0';
+    buf[SHA_HASH_SIZE(SHA1) / 4] = '\0';
     return buf;
   }
   // SHA 2
   SHA_DEF const char* sha_224_to_string(const sha_224_t* h, bool upper_case)
   {
-    static char buf[(SHA2_HASH_SIZE(SHA2_224) / 4) + 1]; // 4bits per char
+    static char buf[(SHA_HASH_SIZE(SHA2_224) / 4) + 1]; // 4bits per char
     for (size_t i = 0; i < sizeof(h->words) / sizeof(*h->words); i++) {
       sha_word_32_to_hex_string(buf + i * 8, upper_case, h->words[i]);
     }
-    buf[SHA2_HASH_SIZE(SHA2_224) / 4] = '\0';
+    buf[SHA_HASH_SIZE(SHA2_224) / 4] = '\0';
     return buf;
   }
   SHA_DEF const char* sha_256_to_string(const sha_256_t* h, bool upper_case)
   {
-    static char buf[(SHA2_HASH_SIZE(SHA2_256) / 4) + 1]; // 4bits per char
+    static char buf[(SHA_HASH_SIZE(SHA2_256) / 4) + 1]; // 4bits per char
     for (size_t i = 0; i < sizeof(h->words) / sizeof(*h->words); i++) {
       sha_word_32_to_hex_string(buf + i * 8, upper_case, h->words[i]);
     }
-    buf[SHA2_HASH_SIZE(SHA2_256) / 4] = '\0';
+    buf[SHA_HASH_SIZE(SHA2_256) / 4] = '\0';
     return buf;
   }
   SHA_DEF const char* sha_384_to_string(const sha_384_t* h, bool upper_case)
   {
-    static char buf[(SHA2_HASH_SIZE(SHA2_384) / 4) + 1]; // 4bits per char
+    static char buf[(SHA_HASH_SIZE(SHA2_384) / 4) + 1]; // 4bits per char
     for (size_t i = 0; i < sizeof(h->words) / sizeof(*h->words); i++) {
       sha_word_64_to_hex_string(buf + i * 16, upper_case, h->words[i]);
     }
-    buf[SHA2_HASH_SIZE(SHA2_384) / 4] = '\0';
+    buf[SHA_HASH_SIZE(SHA2_384) / 4] = '\0';
     return buf;
   }
   SHA_DEF const char* sha_512_to_string(const sha_512_t* h, bool upper_case)
   {
-    static char buf[(SHA2_HASH_SIZE(SHA2_512) / 4) + 1]; // 4bits per char
+    static char buf[(SHA_HASH_SIZE(SHA2_512) / 4) + 1]; // 4bits per char
     for (size_t i = 0; i < sizeof(h->words) / sizeof(*h->words); i++) {
       sha_word_64_to_hex_string(buf + i * 16, upper_case, h->words[i]);
     }
-    buf[SHA2_HASH_SIZE(SHA2_512) / 4] = '\0';
+    buf[SHA_HASH_SIZE(SHA2_512) / 4] = '\0';
     return buf;
   }
-#endif // SHA_2_IMPLEMENTATION
+#endif // SHA_IMPLEMENTATION
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // _SHA_2_
+#endif // _SHA_INCLUDE_

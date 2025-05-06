@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <time.h>
 
-#define SHA_2_IMPLEMENTATION
-#include "../SHA-2.h"
+#define SHA_IMPLEMENTATION
+#include "../SHA.h"
 
 void endianCheckPrint()
 {
@@ -12,18 +12,6 @@ void endianCheckPrint()
   } else {
     printf("Your system is Big-Endian!\n");
   }
-}
-
-static uint8_t reverse_bits_in_byte(uint8_t b)
-{
-  b = (b & 0b11110000) >> 4 | (b & 0b00001111) << 4;
-  b = (b & 0b11001100) >> 2 | (b & 0b00110011) << 2;
-  b = (b & 0b10101010) >> 1 | (b & 0b01010101) << 1;
-  return b;
-}
-static void sha3_reverse_data(uint8_t* d, unsigned int byte_count)
-{
-  for (unsigned int i = 0; i < byte_count; i++) { d[i] = reverse_bits_in_byte(d[i]); }
 }
 
 int main(int argc, char** argv)
