@@ -237,15 +237,15 @@ static_assert("SHA_MEMCPY not defined without string.h");
 // Intrinsics
 // -------------------------
 #ifndef SHA_NO_SIMD
-#define SHA2_ROTL_MM_32(x, n)   _mm_or_epi32(_mm_sll_epi32(x, _mm_set1_epi32(n)), _mm_srl_epi32(x, _mm_set1_epi32(32 - n)))
-#define SHA2_ROTL_MM_64(x, n)   _mm_or_epi64(_mm_sll_epi64(x, _mm_set1_epi64(n)), _mm_srl_epi64(x, _mm_set1_epi64(64 - n)))
-#define _SHA2_ROTL_MM(WS, x, n) SHA2_ROTL_MM_##WS(x, n)
-#define SHA2_ROTL_MM(WS, x, n)  _SHA2_ROTL_MM(WS, x, n)
+#define SHA_ROTL_MM_32(x, n)   _mm_or_epi32(_mm_sll_epi32(x, _mm_set1_epi32x(n)), _mm_srl_epi32(x, _mm_set1_epi32x(32 - (n))))
+#define SHA_ROTL_MM_64(x, n)   _mm_or_epi64(_mm_sll_epi64(x, _mm_set1_epi64x(n)), _mm_srl_epi64(x, _mm_set1_epi64x(64 - (n))))
+#define _SHA_ROTL_MM(WS, x, n) SHA_ROTL_MM_##WS(x, n)
+#define SHA_ROTL_MM(WS, x, n)  _SHA_ROTL_MM(WS, x, n)
 
-#define SHA2_ROTR_MM_32(x, n)   _mm_or_epi32(_mm_srl_epi32(x, _mm_set1_epi32(n)), _mm_sll_epi32(x, _mm_set1_epi32(32 - n)))
-#define SHA2_ROTR_MM_64(x, n)   _mm_or_epi64(_mm_srl_epi64(x, _mm_set1_epi64(n)), _mm_sll_epi64(x, _mm_set1_epi64(64 - n)))
-#define _SHA2_ROTR_MM(WS, x, n) SHA2_ROTR_MM_##WS(x, n)
-#define SHA2_ROTR_MM(WS, x, n)  _SHA2_ROTR_MM(WS, x, n)
+#define SHA_ROTR_MM_32(x, n)   _mm_or_epi32(_mm_srl_epi32(x, _mm_set1_epi32x(n)), _mm_sll_epi32(x, _mm_set1_epi32x(32 - (n))))
+#define SHA_ROTR_MM_64(x, n)   _mm_or_epi64(_mm_srl_epi64(x, _mm_set1_epi64x(n)), _mm_sll_epi64(x, _mm_set1_epi64x(64 - (n))))
+#define _SHA_ROTR_MM(WS, x, n) SHA_ROTR_MM_##WS(x, n)
+#define SHA_ROTR_MM(WS, x, n)  _SHA_ROTR_MM(WS, x, n)
 #endif // SHA_NO_SIMD
 
 // --------------------------
@@ -1435,6 +1435,7 @@ extern "C" {
     sha2_256_append_bits(ctx, data, bit_count);
   }
 
+  // TODO: SIMD _mm256_sha512msg1_epi64
   static void _sha2_512_hash_block(sha2_512_ctx* ctx, sha2_block_512_t* block_optional)
   {
     static SHA_WORD_TYPE(SHA2_512) W[80];
@@ -1605,15 +1606,13 @@ extern "C" {
     printf("\n");
   }
 
-  static void sha3_b1600_theta(sha3_ctx* ctx)
+  static void sha3_b1600_theta_base(sha3_ctx* ctx)
   {
     SHA_WORD_TYPE_WS(8)* s = ctx->state.bytes;
     SHA_WORD_TYPE_WS(64) C[5];
     for (unsigned short x = 0; x < 5; x++) {
-      C[x] = SHA_XOR(64, SHA3_STATE_TO_SA(s, x, 0), SHA3_STATE_TO_SA(s, x, 1));
-      C[x] = SHA_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 2));
-      C[x] = SHA_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 3));
-      C[x] = SHA_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, 4));
+      C[x] = SHA3_STATE_TO_SA(s, x, 0);
+      for (unsigned char y = 1; y < 5; y++) { C[x] = SHA_XOR(64, C[x], SHA3_STATE_TO_SA(s, x, y)); }
     }
 
     //  SHA_WORD_TYPE_WS(64) D[5];
@@ -1625,6 +1624,154 @@ extern "C" {
       // sha3_print_state(ctx, 0, "Theta:C");
     }
   }
+#if !defined(SHA_NO_SIMD) && SHA_IS_X86
+  static void sha3_b1600_theta_x86_mm_(sha3_ctx* ctx)
+  {
+    SHA_WORD_TYPE_WS(8)* s = ctx->state.bytes;
+    __m128i TMP, C10, C32;
+    SHA_WORD_TYPE_WS(64) C4;
+
+    C10 = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 0, 0));
+    TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 0, 1));
+    C10 = _mm_xor_si128(C10, TMP);
+    TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 0, 2));
+    C10 = _mm_xor_si128(C10, TMP);
+    TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 0, 3));
+    C10 = _mm_xor_si128(C10, TMP);
+    TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 0, 4));
+    C10 = _mm_xor_si128(C10, TMP);
+
+    C32 = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 2, 0));
+    TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 2, 1));
+    C32 = _mm_xor_si128(C32, TMP);
+    TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 2, 2));
+    C32 = _mm_xor_si128(C32, TMP);
+    TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 2, 3));
+    C32 = _mm_xor_si128(C32, TMP);
+    TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 2, 4));
+    C32 = _mm_xor_si128(C32, TMP);
+
+    C4  = SHA3_STATE_TO_SA(s, 4, 0);
+    C4  = SHA_XOR(64, C4, SHA3_STATE_TO_SA(s, 4, 1));
+    C4  = SHA_XOR(64, C4, SHA3_STATE_TO_SA(s, 4, 2));
+    C4  = SHA_XOR(64, C4, SHA3_STATE_TO_SA(s, 4, 3));
+    C4  = SHA_XOR(64, C4, SHA3_STATE_TO_SA(s, 4, 4));
+
+    __m128i D10, D32, C21;
+    C21 = _mm_castpd_si128(_mm_shuffle_pd(_mm_castsi128_pd(C10), _mm_castsi128_pd(C32), 0b01)); // C21
+    // C21 = _mm_unpacklo_epi64(C32, C32); // C22
+    // C21 = _mm_unpackhi_epi64(C10, C21); // C21
+
+    // D10
+    TMP = _mm_set1_epi64x(C4);          // TMP = C44
+    TMP = _mm_unpacklo_epi64(TMP, C10); // TMP = C04
+    D10 = SHA_ROTL_MM(64, C21, 1);
+    D10 = _mm_xor_si128(TMP, D10);
+
+    // D32
+    D32 = _mm_set1_epi64x(C4);          // D32 = C44
+    D32 = _mm_unpackhi_epi64(C32, D32); // D32 = C43
+    D32 = SHA_ROTL_MM(64, D32, 1);
+    D32 = _mm_xor_si128(C21, D32);
+
+    // D4
+    SHA_WORD_TYPE_WS(64) C0, C3, D4;
+    C0 = _mm_extract_epi64(C10, 0);
+    C3 = _mm_extract_epi64(C32, 1);
+    D4 = SHA_ROTL(64, C0, 1);
+    D4 = SHA_XOR(64, C3, D4);
+
+    // Store
+    for (unsigned short y = 0; y < 5; y++) {
+      // D10
+      TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 0, y));
+      TMP = _mm_xor_si128(TMP, D10);
+      _mm_storeu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 0, y), TMP);
+      // D32
+      TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 2, y));
+      TMP = _mm_xor_si128(TMP, D32);
+      _mm_storeu_si128((__m128i*)&SHA3_STATE_TO_SA(s, 2, y), TMP);
+      // D4
+      SHA3_STATE_TO_SA(s, 4, y) = SHA_XOR(64, SHA3_STATE_TO_SA(s, 4, y), D4);
+    }
+  }
+  static void sha3_b1600_theta_x86_mm256_(sha3_ctx* ctx)
+  {
+    SHA_WORD_TYPE_WS(8)* s = ctx->state.bytes;
+    __m256i TMP, C3210;
+    SHA_WORD_TYPE_WS(64) C4;
+
+    C3210 = _mm256_loadu_si256((__m256i*)&SHA3_STATE_TO_SA(s, 0, 0));
+    TMP   = _mm256_loadu_si256((__m256i*)&SHA3_STATE_TO_SA(s, 0, 1));
+    C3210 = _mm256_xor_si256(C3210, TMP);
+    TMP   = _mm256_loadu_si256((__m256i*)&SHA3_STATE_TO_SA(s, 0, 2));
+    C3210 = _mm256_xor_si256(C3210, TMP);
+    TMP   = _mm256_loadu_si256((__m256i*)&SHA3_STATE_TO_SA(s, 0, 3));
+    C3210 = _mm256_xor_si256(C3210, TMP);
+    TMP   = _mm256_loadu_si256((__m256i*)&SHA3_STATE_TO_SA(s, 0, 4));
+    C3210 = _mm256_xor_si256(C3210, TMP);
+
+    C4    = SHA3_STATE_TO_SA(s, 4, 0);
+    C4    = SHA_XOR(64, C4, SHA3_STATE_TO_SA(s, 4, 1));
+    C4    = SHA_XOR(64, C4, SHA3_STATE_TO_SA(s, 4, 2));
+    C4    = SHA_XOR(64, C4, SHA3_STATE_TO_SA(s, 4, 3));
+    C4    = SHA_XOR(64, C4, SHA3_STATE_TO_SA(s, 4, 4));
+
+    SHA_WORD_TYPE_WS(64) C[5];
+
+    __m256i D3210, C4321;
+    // C4321
+    C4321 = _mm256_permute4x64_epi64(C3210, 0b00111001);
+    C4321 = _mm256_insert_epi64(C4321, C4, 3); // C4321
+    // ROTL(C4321, 1)
+    D3210 = _mm256_slli_epi64(C4321, 1);
+    TMP   = _mm256_srli_epi64(C4321, 64 - 1);
+    D3210 = _mm256_or_epi64(D3210, TMP);
+    // C2104
+    C4321 = _mm256_permute4x64_epi64(C3210, 0b10010000);
+    C4321 = _mm256_insert_epi64(C4321, C4, 0); // C2104
+    // D3210 = XOR(D3210, C2104)
+    D3210 = _mm256_xor_si256(D3210, C4321);
+
+    // D4
+    SHA_WORD_TYPE_WS(64) C0, C3, D4;
+    C0 = _mm256_extract_epi64(C3210, 0);
+    C3 = _mm256_extract_epi64(C3210, 3);
+    D4 = SHA_ROTL(64, C0, 1);
+    D4 = SHA_XOR(64, C3, D4);
+
+    // Store
+    for (unsigned short y = 0; y < 5; y++) {
+      // D3210
+      TMP = _mm256_loadu_si256((__m256i*)&SHA3_STATE_TO_SA(s, 0, y));
+      TMP = _mm256_xor_si256(TMP, D3210);
+      _mm256_storeu_si256((__m256i*)&SHA3_STATE_TO_SA(s, 0, y), TMP);
+      // D4
+      SHA3_STATE_TO_SA(s, 4, y) = SHA_XOR(64, SHA3_STATE_TO_SA(s, 4, y), D4);
+    }
+  }
+  static void sha3_b1600_theta_x86(sha3_ctx* ctx)
+  {
+#if defined(__AVX__) && defined(__AVX2__) // TODO: ADD SHA_NO_SIMD_AVX
+    sha3_b1600_theta_x86_mm256_(ctx);
+#elif defined(__SSE2__)                   // TODO: ADD SHA_NO_SIMD_SSE
+    sha3_b1600_theta_x86_mm_(ctx);
+#else                                     // defined __SSE__, __AVX__, ...
+    sha3_b1600_theta_base(ctx);
+#endif                                    // defined __SSE__, __AVX__, ...
+  }
+#endif                                    // SHA_IS_X86
+  static void sha3_b1600_theta(sha3_ctx* ctx)
+  {
+    // TODO: Runtime Check for intrinsics
+#ifdef SHA_NO_SIMD
+    sha3_b1600_theta_base(ctx);
+#elif SHA_IS_X86 // SHA_NO_SIMD
+    sha3_b1600_theta_x86(ctx);
+#else            // TODO: ARM, ...
+    sha3_b1600_theta_base(ctx);
+#endif           // SHA_NO_SIMD
+  }
   static void sha3_b1600_rho(sha3_ctx* ctx)
   {
     SHA_WORD_TYPE_WS(8)* bytes = ctx->state.bytes;
@@ -1632,8 +1779,7 @@ extern "C" {
     x = 1;
     y = 0;
     for (unsigned short t = 0; t < 24; t++) {
-      unsigned int n = (((t + 1) * (t + 2)) / 2) % 64;
-      // printf("n=%u, x=%u, y=%u\n", n, x, y);
+      unsigned int n                = (((t + 1) * (t + 2)) / 2) % 64;
       SHA3_STATE_TO_SA(bytes, x, y) = SHA_ROTL(64, SHA3_STATE_TO_SA(bytes, x, y), n);
       //
       ty = y;
@@ -1652,7 +1798,7 @@ extern "C" {
       }
     }
   }
-  static void sha3_b1600_chi(sha3_ctx* ctx)
+  static void sha3_b1600_chi_base(sha3_ctx* ctx)
   {
     sha3_state_t s_copy        = ctx->state;
     SHA_WORD_TYPE_WS(8)* bytes = ctx->state.bytes;
@@ -1663,6 +1809,80 @@ extern "C" {
         SHA3_STATE_TO_SA(bytes, x, y) = SHA_XOR(64, SHA3_STATE_TO_SA(s_copy.bytes, x, y), res);
       }
     }
+  }
+#if !defined(SHA_NO_SIMD) && defined(SHA_IS_X86)
+  static void sha3_b1600_chi_x86_mm_(sha3_ctx* ctx)
+  {
+    sha3_state_t s_copy        = ctx->state;
+    SHA_WORD_TYPE_WS(8)* bytes = ctx->state.bytes;
+
+    __m128i X10, TMP;
+    for (unsigned short y = 0; y < 5; y++) {
+      // x=1,0
+      X10 = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s_copy.bytes, 1, y));
+      TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s_copy.bytes, 2, y));
+      X10 = _mm_andnot_si128(X10, TMP);
+      TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s_copy.bytes, 0, y));
+      X10 = _mm_xor_si128(TMP, X10);
+      _mm_storeu_si128((__m128i*)&SHA3_STATE_TO_SA(bytes, 0, y), X10);
+      // x=3,2
+      X10 = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s_copy.bytes, 3, y));
+      TMP = _mm_set_epi64x(SHA3_STATE_TO_SA(s_copy.bytes, 0, y), SHA3_STATE_TO_SA(s_copy.bytes, 4, y));
+      X10 = _mm_andnot_si128(X10, TMP);
+      TMP = _mm_loadu_si128((__m128i*)&SHA3_STATE_TO_SA(s_copy.bytes, 2, y));
+      X10 = _mm_xor_si128(TMP, X10);
+      _mm_storeu_si128((__m128i*)&SHA3_STATE_TO_SA(bytes, 2, y), X10);
+      // x=4
+      SHA_WORD_TYPE_WS(64) X4;
+      X4                            = SHA_NOT(64, SHA3_STATE_TO_SA(s_copy.bytes, 0, y)); // XOR with 1 equals not
+      X4                            = SHA_AND(64, X4, SHA3_STATE_TO_SA(s_copy.bytes, 1, y));
+      SHA3_STATE_TO_SA(bytes, 4, y) = SHA_XOR(64, SHA3_STATE_TO_SA(s_copy.bytes, 4, y), X4);
+    }
+  }
+  static void sha3_b1600_chi_x86_mm256_(sha3_ctx* ctx)
+  {
+    sha3_state_t s_copy        = ctx->state;
+    SHA_WORD_TYPE_WS(8)* bytes = ctx->state.bytes;
+
+    __m256i X3210, TMP;
+    for (unsigned short y = 0; y < 5; y++) {
+      // x=3,2,1,0
+      X3210 = _mm256_loadu_si256((__m256i*)&SHA3_STATE_TO_SA(s_copy.bytes, 1, y));
+      TMP   = _mm256_permute4x64_epi64(X3210, 0b00111001);
+      TMP   = _mm256_insert_epi64(TMP, SHA3_STATE_TO_SA(s_copy.bytes, 0, y), 3);
+      X3210 = _mm256_andnot_si256(X3210, TMP);
+      TMP   = _mm256_loadu_si256((__m256i*)&SHA3_STATE_TO_SA(s_copy.bytes, 0, y));
+      X3210 = _mm256_xor_si256(TMP, X3210);
+      _mm256_storeu_si256((__m256i*)&SHA3_STATE_TO_SA(bytes, 0, y), X3210);
+      // x=4
+      SHA_WORD_TYPE_WS(64) X4;
+      X4                            = SHA_NOT(64, SHA3_STATE_TO_SA(s_copy.bytes, 0, y)); // XOR with 1 equals not
+      X4                            = SHA_AND(64, X4, SHA3_STATE_TO_SA(s_copy.bytes, 1, y));
+      SHA3_STATE_TO_SA(bytes, 4, y) = SHA_XOR(64, SHA3_STATE_TO_SA(s_copy.bytes, 4, y), X4);
+    }
+  }
+  static void sha3_b1600_chi_x86(sha3_ctx* ctx)
+  {
+#if defined(__AVX__) && defined(__AVX2__) // TODO: ADD SHA_NO_SIMD_AVX
+    sha3_b1600_chi_x86_mm256_(ctx);
+#elif defined(__SSE2__)                   // TODO: ADD SHA_NO_SIMD_SSE
+    sha3_b1600_chi_x86_mm_(ctx);
+#else                                     // defined __SSE__, __AVX__, ...
+    sha3_b1600_chi_base(ctx);
+#define SHA3_NEED_CHI_BASE 1
+#endif                                    // defined __SSE__, __AVX__, ...
+  }
+#endif                                    // SHA_IS_X86
+  static void sha3_b1600_chi(sha3_ctx* ctx)
+  {
+    // TODO: Runtime Check for intrinsics
+#ifdef SHA_NO_SIMD
+    sha3_b1600_chi_base(ctx);
+#elif SHA_IS_X86
+    sha3_b1600_chi_x86(ctx);
+#else  // TODO: ARM
+    sha3_b1600_chi_base(ctx);
+#endif // SHA_NO_SIMD
   }
   static void sha3_b1600_iota(sha3_ctx* ctx, unsigned short round_index)
   {
@@ -1700,14 +1920,6 @@ extern "C" {
     b = (b & 0b10101010) >> 1 | (b & 0b01010101) << 1;
     return b;
   }
-  static SHA_WORD_TYPE_WS(64) sha3_reverse_64(SHA_WORD_TYPE_WS(64) value)
-  {
-    for (unsigned short j = 0; j < sizeof(value); j++) {
-      SHA_WORD_TYPE_WS(8)* byte_ptr = (SHA_WORD_TYPE_WS(8)*)&value;
-      byte_ptr[j]                   = sha3_reverse_bits_in_byte(byte_ptr[j]);
-    }
-    return SHA_IS_BIG_ENDIAN ? SHA_BYTE_SWAP_WS(64, value) : value;
-  }
   static void sha3_print_data(const SHA_WORD_TYPE_WS(8) * data, unsigned long count, const char* str)
   {
     printf("%s:\n", str);
@@ -1731,26 +1943,61 @@ extern "C" {
   {
     const SHA_WORD_TYPE_WS(8)* data = opt_data != NULL ? opt_data : ctx->pi.bytes;
     SHA_WORD_TYPE_WS(8)* dest       = ctx->state.bytes;
+    unsigned long bit_count         = ctx->r;
     // sha3_print_data(data, ctx->r / 8, "Data");
+
+#ifndef SHA_NO_SIMD
+#ifdef SHA_IS_X86
+    // Handle _mm256_
+    unsigned long mm256_count = bit_count / 256;
+    for (unsigned long i = 0; i < mm256_count; i++) {
+      __m256i V = _mm256_loadu_si256(((__m256i*)data) + i);
+      __m256i S = _mm256_loadu_si256(((__m256i*)dest) + i);
+      S         = _mm256_xor_si256(S, V);
+      _mm256_storeu_si256(((__m256i*)dest) + i, S);
+    }
+    bit_count -= mm256_count * 256;
+    data      += mm256_count * (256 / 8);
+    dest      += mm256_count * (256 / 8);
+#endif // SHA_IS_X86 // else ARM
+
+#ifdef SHA_IS_X86
+    // Handle _mm_
+    unsigned long mm128_count = bit_count / 128;
+    for (unsigned long i = 0; i < mm128_count; i++) {
+      __m128i V = _mm_loadu_si128(((__m128i*)data) + i);
+      __m128i S = _mm_loadu_si128(((__m128i*)dest) + i);
+      S         = _mm_xor_si128(S, V);
+      _mm_storeu_si128(((__m128i*)dest) + i, S);
+    }
+    bit_count -= mm128_count * 128;
+    data      += mm128_count * (128 / 8);
+    dest      += mm128_count * (128 / 8);
+#endif // SHA_IS_X86 // else ARM
+#endif // SHA_NO_SIMD
+
     // Handle Words
-    unsigned long word_count = ctx->r / 64;
+    unsigned long word_count = bit_count / 64;
     for (unsigned long i = 0; i < word_count; i++) {
       const SHA_WORD_TYPE_WS(64) v = ((SHA_WORD_TYPE_WS(64)*)data)[i];
       SHA_WORD_TYPE_WS(64)* s      = &((SHA_WORD_TYPE_WS(64)*)dest)[i];
       *s                           = SHA_XOR(64, *s, v);
     }
-    data += word_count / 8;
-    dest += word_count / 8;
+    bit_count -= word_count * 64;
+    data      += word_count * 8;
+    dest      += word_count * 8;
+
     // Handle Bytes
-    unsigned short byte_count = (ctx->r - (word_count * 64)) / 8;
+    unsigned short byte_count = bit_count / 8;
     for (unsigned short i = 0; i < byte_count; i++) {
       const SHA_WORD_TYPE_WS(8) v = data[i];
       dest[i]                     = SHA_XOR(8, dest[i], v);
     }
-    data += byte_count;
-    dest += byte_count;
+    bit_count -= byte_count * 8;
+    data      += byte_count;
+    dest      += byte_count;
+
     // Handle Bits
-    unsigned short bit_count = (ctx->r - (word_count * 64)) - (byte_count * 8);
     if (bit_count > 0) {
       const SHA_WORD_TYPE_WS(8) v = data[0] & ((1 << bit_count) - 1);
       dest[0]                     = SHA_XOR(8, dest[0], v);
