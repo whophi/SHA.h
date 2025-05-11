@@ -728,7 +728,7 @@ extern "C" {
   // SHA 1
   static void _sha1_hash_block_base(sha1_ctx* ctx, sha2_block_256_t* block_optional)
   {
-    static SHA_WORD_TYPE(SHA1) W[80];
+    SHA_WORD_TYPE(SHA1) W[80];
     sha2_block_256_t* block = block_optional == NULL ? &ctx->block : block_optional;
 
     {
@@ -1084,7 +1084,7 @@ extern "C" {
   }
   static void _sha2_256_hash_block_base(sha2_256_ctx* ctx, sha2_block_256_t* block_optional)
   {
-    static SHA_WORD_TYPE(SHA2_256) W[64];
+    SHA_WORD_TYPE(SHA2_256) W[64];
     sha2_block_256_t* block = block_optional == NULL ? &ctx->block : block_optional;
 
     {
@@ -1438,7 +1438,7 @@ extern "C" {
   // TODO: SIMD _mm256_sha512msg1_epi64
   static void _sha2_512_hash_block(sha2_512_ctx* ctx, sha2_block_512_t* block_optional)
   {
-    static SHA_WORD_TYPE(SHA2_512) W[80];
+    SHA_WORD_TYPE(SHA2_512) W[80];
     sha2_block_512_t* block = block_optional == NULL ? &ctx->block : block_optional;
 
     {
