@@ -1441,8 +1441,8 @@ extern "C" {
     sha2_256_append_bits(ctx, data, bit_count);
   }
 
-  // TODO: SIMD _mm256_sha512msg1_epi64
-  static void _sha2_512_hash_block(sha2_512_ctx* ctx, sha2_block_512_t* block_optional)
+  // SHA2-512
+  static void _sha2_512_hash_block_base(sha2_512_ctx* ctx, sha2_block_512_t* block_optional)
   {
     SHA_WORD_TYPE(SHA2_512) W[80];
     sha2_block_512_t* block = block_optional == NULL ? &ctx->block : block_optional;
@@ -1480,6 +1480,296 @@ extern "C" {
       (ctx->hash.words[4] = e + ctx->hash.words[4], ctx->hash.words[5] = f + ctx->hash.words[5]);
       (ctx->hash.words[6] = g + ctx->hash.words[6], ctx->hash.words[7] = h + ctx->hash.words[7]);
     }
+  }
+#if !defined(SHA_NO_SIMD) && defined(SHA_IS_X86) && defined(__AVX2__) && defined(__AVX__) && defined(__SHA512__)
+  static void _sha2_512_hash_block_x86_mm256(sha2_512_ctx* ctx, sha2_block_512_t* block_optional)
+  {
+    sha2_block_512_t* block = block_optional == NULL ? &ctx->block : block_optional;
+
+    __m256i           ABEF, CDGH, ABEF_SAVE, CDGH_SAVE, TMP;
+    __m256i           MSG, MSGTMP0, MSGTMP1, MSGTMP2, MSGTMP3, MASK;
+    __m128i           MSG_LOW;
+
+    // Load initial values
+    TMP  = _mm256_loadu_si256((const __m256i*)&ctx->hash.words[0]); /* ABCD */
+    CDGH = _mm256_loadu_si256((const __m256i*)&ctx->hash.words[4]); /* EFGH */
+
+    TMP  = _mm256_permute4x64_epi64(TMP, 0b10110001);               /* CDAB */
+    CDGH = _mm256_permute4x64_epi64(CDGH, 0b00011011);              /* EFGH */
+    ABEF = _mm256_alignr_epi8(TMP, CDGH, 8);                        /* ABEF */
+    CDGH = _mm256_blend_epi32(CDGH, TMP, 0b11110000);               /* CDGH */
+
+    // TODO: TEST
+    MASK = _mm256_set_epi64x(0x18191a1b1c1d1e1fULL, 0x1011121314151617ULL, 0x08090a0b0c0d0e0fULL, 0x0001020304050607ULL);
+    if (SHA_IS_BIG_ENDIAN) {
+      MASK = _mm256_set_epi64x(0x1f1e1d1c1b1a1918ULL, 0x1716151413121110ULL, 0x0f0e0d0c0b0a0908ULL, 0x0706050403020100ULL);
+    }
+
+    // Save current hash
+    ABEF_SAVE = ABEF;
+    CDGH_SAVE = CDGH;
+
+#define SHA_LOAD_MSG(i)   (_mm256_loadu_si256((__m256i*)(block->words + i)))
+#define SHA_LOAD_CONST(i) (_mm256_loadu_si256((__m256i*)(SHA2_CONST_384_512 + i)))
+
+    // Rounds 0-3
+    MSG     = SHA_LOAD_MSG(0);
+    MSGTMP0 = _mm256_shuffle_epi8(MSG, MASK);
+    MSG     = _mm256_add_epi64(MSGTMP0, SHA_LOAD_CONST(0));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0); // TEST _mm256_castsi256_si128
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+
+    // Round 4-7
+    MSG     = SHA_LOAD_MSG(1 * 4);
+    MSGTMP1 = _mm256_shuffle_epi8(MSG, MASK);
+    MSG     = _mm256_add_epi64(MSGTMP1, SHA_LOAD_CONST(4));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP1, 0); // TEST _mm256_castsi256_si128
+    MSGTMP0 = _mm256_sha512msg1_epi64(MSGTMP0, MSG_LOW);
+
+    // Round 8-11
+    MSG     = SHA_LOAD_MSG(2 * 4);
+    MSGTMP2 = _mm256_shuffle_epi8(MSG, MASK);
+    MSG     = _mm256_add_epi64(MSGTMP2, SHA_LOAD_CONST(8));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP2, 0);
+    MSGTMP1 = _mm256_sha512msg1_epi64(MSGTMP1, MSG_LOW);
+
+    // Round 12-15
+    MSG     = SHA_LOAD_MSG(3 * 4);
+    MSGTMP3 = _mm256_shuffle_epi8(MSG, MASK);
+    MSG     = _mm256_add_epi64(MSGTMP3, SHA_LOAD_CONST(12));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP3, MSGTMP2, 4);
+    MSGTMP0 = _mm256_add_epi32(MSGTMP0, TMP);
+    MSGTMP0 = _mm256_sha512msg2_epi64(MSGTMP0, MSGTMP3);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP3, 0);
+    MSGTMP2 = _mm256_sha512msg1_epi64(MSGTMP2, MSG_LOW);
+
+    // Round 16-19
+    MSG     = _mm256_add_epi64(MSGTMP0, SHA_LOAD_CONST(16));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP0, MSGTMP3, 4);
+    MSGTMP1 = _mm256_add_epi64(MSGTMP1, TMP);
+    MSGTMP1 = _mm256_sha512msg2_epi64(MSGTMP1, MSGTMP0);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP0, 0);
+    MSGTMP3 = _mm256_sha512msg1_epi64(MSGTMP3, MSG_LOW);
+
+    // Round 20-23
+    MSG     = _mm256_add_epi64(MSGTMP1, SHA_LOAD_CONST(20));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP1, MSGTMP0, 4);
+    MSGTMP2 = _mm256_add_epi64(MSGTMP2, TMP);
+    MSGTMP2 = _mm256_sha512msg2_epi64(MSGTMP2, MSGTMP1);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP1, 0);
+    MSGTMP0 = _mm256_sha512msg1_epi64(MSGTMP0, MSG_LOW);
+
+    // Round 24-27
+    MSG     = _mm256_add_epi64(MSGTMP2, SHA_LOAD_CONST(24));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP2, MSGTMP1, 4);
+    MSGTMP3 = _mm256_add_epi64(MSGTMP3, TMP);
+    MSGTMP3 = _mm256_sha512msg2_epi64(MSGTMP3, MSGTMP2);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP2, 0);
+    MSGTMP1 = _mm256_sha512msg1_epi64(MSGTMP1, MSG_LOW);
+
+    // Round 28-31
+    MSG     = _mm256_add_epi64(MSGTMP3, SHA_LOAD_CONST(28));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP3, MSGTMP2, 4);
+    MSGTMP0 = _mm256_add_epi64(MSGTMP0, TMP);
+    MSGTMP0 = _mm256_sha512msg2_epi64(MSGTMP0, MSGTMP3);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP3, 0);
+    MSGTMP2 = _mm256_sha512msg1_epi64(MSGTMP2, MSG_LOW);
+
+    // Round 32-35
+    MSG     = _mm256_add_epi64(MSGTMP0, SHA_LOAD_CONST(32));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP0, MSGTMP3, 4);
+    MSGTMP1 = _mm256_add_epi64(MSGTMP1, TMP);
+    MSGTMP1 = _mm256_sha512msg2_epi64(MSGTMP1, MSGTMP0);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP0, 0);
+    MSGTMP3 = _mm256_sha512msg1_epi64(MSGTMP3, MSG_LOW);
+
+    // Round 36-39
+    MSG     = _mm256_add_epi64(MSGTMP1, SHA_LOAD_CONST(36));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP1, MSGTMP0, 4);
+    MSGTMP2 = _mm256_add_epi64(MSGTMP2, TMP);
+    MSGTMP2 = _mm256_sha512msg2_epi64(MSGTMP2, MSGTMP1);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP1, 0);
+    MSGTMP0 = _mm256_sha512msg1_epi64(MSGTMP0, MSG_LOW);
+
+    // Round 40-43
+    MSG     = _mm256_add_epi64(MSGTMP2, SHA_LOAD_CONST(40));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP2, MSGTMP1, 4);
+    MSGTMP3 = _mm256_add_epi64(MSGTMP3, TMP);
+    MSGTMP3 = _mm256_sha512msg2_epi64(MSGTMP3, MSGTMP2);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP2, 0);
+    MSGTMP1 = _mm256_sha512msg1_epi64(MSGTMP1, MSG_LOW);
+
+    // Round 44-47
+    MSG     = _mm256_add_epi64(MSGTMP3, SHA_LOAD_CONST(44));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP3, MSGTMP2, 4);
+    MSGTMP0 = _mm256_add_epi64(MSGTMP0, TMP);
+    MSGTMP0 = _mm256_sha512msg2_epi64(MSGTMP0, MSGTMP3);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP3, 0);
+    MSGTMP2 = _mm256_sha512msg1_epi64(MSGTMP2, MSG_LOW);
+
+    // Round 48-51
+    MSG     = _mm256_add_epi64(MSGTMP0, SHA_LOAD_CONST(48));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP0, MSGTMP3, 4);
+    MSGTMP1 = _mm256_add_epi64(MSGTMP1, TMP);
+    MSGTMP1 = _mm256_sha512msg2_epi64(MSGTMP1, MSGTMP0);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP0, 0);
+    MSGTMP3 = _mm256_sha512msg1_epi64(MSGTMP3, MSG_LOW);
+
+    // Round 52-55
+    MSG     = _mm256_add_epi64(MSGTMP1, SHA_LOAD_CONST(52));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP1, MSGTMP0, 4);
+    MSGTMP2 = _mm256_add_epi64(MSGTMP2, TMP);
+    MSGTMP2 = _mm256_sha512msg2_epi64(MSGTMP2, MSGTMP1);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP1, 0);
+    MSGTMP0 = _mm256_sha512msg1_epi64(MSGTMP0, MSG_LOW);
+
+    // Round 56-59
+    MSG     = _mm256_add_epi64(MSGTMP2, SHA_LOAD_CONST(56));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP2, MSGTMP1, 4);
+    MSGTMP3 = _mm256_add_epi64(MSGTMP3, TMP);
+    MSGTMP3 = _mm256_sha512msg2_epi64(MSGTMP3, MSGTMP2);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP2, 0);
+    MSGTMP1 = _mm256_sha512msg1_epi64(MSGTMP1, MSG_LOW);
+
+    // Round 60-63
+    MSG     = _mm256_add_epi64(MSGTMP3, SHA_LOAD_CONST(60));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP3, MSGTMP2, 4);
+    MSGTMP0 = _mm256_add_epi64(MSGTMP0, TMP);
+    MSGTMP0 = _mm256_sha512msg2_epi64(MSGTMP0, MSGTMP3);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP3, 0);
+    MSGTMP2 = _mm256_sha512msg1_epi64(MSGTMP2, MSG_LOW);
+
+    // Round 64-67
+    MSG     = _mm256_add_epi64(MSGTMP0, SHA_LOAD_CONST(64));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP0, MSGTMP3, 4);
+    MSGTMP1 = _mm256_add_epi64(MSGTMP1, TMP);
+    MSGTMP1 = _mm256_sha512msg2_epi64(MSGTMP1, MSGTMP0);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSGTMP0, 0);
+    MSGTMP3 = _mm256_sha512msg1_epi64(MSGTMP3, MSG_LOW);
+
+    // Round 68-71
+    MSG     = _mm256_add_epi64(MSGTMP1, SHA_LOAD_CONST(68));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP1, MSGTMP0, 4);
+    MSGTMP2 = _mm256_add_epi64(MSGTMP2, TMP);
+    MSGTMP2 = _mm256_sha512msg2_epi64(MSGTMP2, MSGTMP1);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+
+    // Round 72-75
+    MSG     = _mm256_add_epi64(MSGTMP2, SHA_LOAD_CONST(72));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    TMP     = _mm256_alignr_epi8(MSGTMP2, MSGTMP1, 4);
+    MSGTMP3 = _mm256_add_epi64(MSGTMP3, TMP);
+    MSGTMP3 = _mm256_sha512msg2_epi64(MSGTMP3, MSGTMP2);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+
+    // Round 76-79
+    MSG     = _mm256_add_epi64(MSGTMP3, SHA_LOAD_CONST(76));
+    MSG_LOW = _mm256_extractf128_si256(MSG, 0);
+    CDGH    = _mm256_sha512rnds2_epi64(CDGH, ABEF, MSG_LOW);
+    MSG_LOW = _mm256_extractf128_si256(MSG, 1);
+    ABEF    = _mm256_sha512rnds2_epi64(ABEF, CDGH, MSG_LOW);
+
+    // Add values back to state
+    ABEF = _mm256_add_epi64(ABEF, ABEF_SAVE);
+    CDGH = _mm256_add_epi64(CDGH, CDGH_SAVE);
+
+    // Save state
+    TMP  = _mm256_permute4x64_epi64(ABEF, 0b00011011);
+    CDGH = _mm256_permute4x64_epi64(CDGH, 0b10110001);
+    ABEF = _mm256_blend_epi32(TMP, CDGH, 0b11110000);
+    CDGH = _mm256_alignr_epi8(CDGH, TMP, 8);
+
+    _mm256_storeu_si256((__m256i*)ctx->hash.words, ABEF);
+    _mm256_storeu_si256((__m256i*)ctx->hash.words + 1, CDGH);
+
+#undef SHA_LOAD_MSG
+#undef SHA_LOAD_CONST
+  }
+#endif // !defined(SHA_NO_SIMD) && defined(SHA_IS_X86)
+  static void _sha2_512_hash_block(sha2_512_ctx* ctx, sha2_block_512_t* block_optional)
+  {
+    // TODO: RUNTIME DETECTION
+#ifdef SHA_NO_SIMD
+    _sha2_512_hash_block_base(ctx, block_optional);
+#else  // SHA_NO_SIMD
+#if defined(SHA_IS_X86) && defined(__SSE3__) && defined(__AVX2__) && defined(__AVX__) && defined(__SHA512__)
+    _sha2_512_hash_block_x86_mm256(ctx, block_optional);
+#else  // IS_X86 // TODO: ARM
+    // TODO: Runtime Check for intrinsics
+    _sha2_512_hash_block_base(ctx, block_optional);
+#endif // IS_X86
+#endif // SHA_NO_SIMD
 
     {
       // Reset
