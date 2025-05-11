@@ -760,6 +760,8 @@ extern "C" {
       (ctx->hash.words[4] = e + ctx->hash.words[4]);
     }
   }
+#if !defined(SHA_NO_SIMD) && defined(SHA_IS_X86) && defined(__SSE2__) && defined(__SSE3__) && defined(__SSE4_1__) && \
+    defined(__SHA__)
   static void _sha1_hash_block_x86_mm(sha1_ctx* ctx, sha2_block_256_t* block_optional)
   {
     sha2_block_256_t* block = block_optional == NULL ? &ctx->block : block_optional;
@@ -943,12 +945,13 @@ extern "C" {
     _mm_storeu_si128((__m128i_u*)ctx->hash.words, ABCD);
     *(ctx->hash.words + 4) = _mm_extract_epi32(E0, 3);
   }
+#endif // !defined(SHA_NO_SIMD) && defined(SHA_IS_X86)
   static void _sha1_hash_block(sha1_ctx* ctx, sha2_block_256_t* block_optional)
   {
 #ifdef SHA_NO_SIMD
     _sha1_hash_block_base(ctx, block_optional);
 #else  // SHA_NO_SIMD
-#if SHA_IS_X86 && defined(__SSE2__) && defined(__SSE3__) && defined(__SSE4_1__) && defined(__SHA__)
+#if defined(SHA_IS_X86) && defined(__SSE2__) && defined(__SSE3__) && defined(__SSE4_1__) && defined(__SHA__)
     _sha1_hash_block_x86_mm(ctx, block_optional);
 #else  // IS_X86 // TODO: ARM
     // TODO: Runtime Check for intrinsics
@@ -1121,6 +1124,8 @@ extern "C" {
       (ctx->hash.words[6] = g + ctx->hash.words[6], ctx->hash.words[7] = h + ctx->hash.words[7]);
     }
   }
+#if !defined(SHA_NO_SIMD) && defined(SHA_IS_X86) && defined(__SSE2__) && defined(__SSE3__) && defined(__SSE4_1__) && \
+    defined(__SHA__)
   static void _sha2_256_hash_block_x86_mm(sha2_256_ctx* ctx, sha2_block_256_t* block_optional)
   {
     sha2_block_256_t* block = block_optional == NULL ? &ctx->block : block_optional;
@@ -1130,15 +1135,13 @@ extern "C" {
     __m128i           MASK, TMP;
 
     // Load initial values
-    // ABEF = _mm_set_epi32(ctx->hash.words[0], ctx->hash.words[1], ctx->hash.words[4], ctx->hash.words[5]);
-    // CDGH = _mm_set_epi32(ctx->hash.words[2], ctx->hash.words[3], ctx->hash.words[6], ctx->hash.words[7]);
     TMP  = _mm_loadu_si128((const __m128i*)&ctx->hash.words[0]);
     CDGH = _mm_loadu_si128((const __m128i*)&ctx->hash.words[4]);
 
-    TMP  = _mm_shuffle_epi32(TMP, 0xB1);     /* CDAB */
-    CDGH = _mm_shuffle_epi32(CDGH, 0x1B);    /* EFGH */
-    ABEF = _mm_alignr_epi8(TMP, CDGH, 8);    /* ABEF */
-    CDGH = _mm_blend_epi16(CDGH, TMP, 0xF0); /* CDGH */
+    TMP  = _mm_shuffle_epi32(TMP, 0b10110001);     /* CDAB */
+    CDGH = _mm_shuffle_epi32(CDGH, 0b00011011);    /* EFGH */
+    ABEF = _mm_alignr_epi8(TMP, CDGH, 8);          /* ABEF */
+    CDGH = _mm_blend_epi16(CDGH, TMP, 0b11110000); /* CDGH */
 
     // MASK = _mm_set_epi64x(0x0001020304050607ULL, 0x08090a0b0c0d0e0fULL);
     MASK = _mm_set_epi64x(0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
@@ -1315,13 +1318,16 @@ extern "C" {
 
     _mm_storeu_si128((__m128i*)ctx->hash.words, ABEF);
     _mm_storeu_si128((__m128i*)ctx->hash.words + 1, CDGH);
+#undef SHA_LOAD_MSG
+#undef SHA_LOAD_CONST
   }
+#endif // !defined(SHA_NO_SIMD) && defined(SHA_IS_X86)
   static void _sha2_256_hash_block(sha2_256_ctx* ctx, sha2_block_256_t* block_optional)
   {
 #ifdef SHA_NO_SIMD
     _sha2_256_hash_block_base(ctx, block_optional);
 #else  // SHA_NO_SIMD
-#if SHA_IS_X86 && defined(__SSE2__) && defined(__SSE3__) && defined(__SSE4_1__) && defined(__SHA__)
+#if defined(SHA_IS_X86) && defined(__SSE2__) && defined(__SSE3__) && defined(__SSE4_1__) && defined(__SHA__)
     _sha2_256_hash_block_x86_mm(ctx, block_optional);
 #else  // IS_X86 // TODO: ARM
     // TODO: Runtime Check for intrinsics
@@ -1625,6 +1631,7 @@ extern "C" {
     }
   }
 #if !defined(SHA_NO_SIMD) && SHA_IS_X86
+#if defined(__SSE2__)
   static void sha3_b1600_theta_x86_mm_(sha3_ctx* ctx)
   {
     SHA_WORD_TYPE_WS(8)* s = ctx->state.bytes;
@@ -1695,6 +1702,8 @@ extern "C" {
       SHA3_STATE_TO_SA(s, 4, y) = SHA_XOR(64, SHA3_STATE_TO_SA(s, 4, y), D4);
     }
   }
+#endif // defined(__SSE2__)
+#if defined(__AVX__) && defined(__AVX2__)
   static void sha3_b1600_theta_x86_mm256_(sha3_ctx* ctx)
   {
     SHA_WORD_TYPE_WS(8)* s = ctx->state.bytes;
@@ -1716,8 +1725,6 @@ extern "C" {
     C4    = SHA_XOR(64, C4, SHA3_STATE_TO_SA(s, 4, 2));
     C4    = SHA_XOR(64, C4, SHA3_STATE_TO_SA(s, 4, 3));
     C4    = SHA_XOR(64, C4, SHA3_STATE_TO_SA(s, 4, 4));
-
-    SHA_WORD_TYPE_WS(64) C[5];
 
     __m256i D3210, C4321;
     // C4321
@@ -1750,6 +1757,7 @@ extern "C" {
       SHA3_STATE_TO_SA(s, 4, y) = SHA_XOR(64, SHA3_STATE_TO_SA(s, 4, y), D4);
     }
   }
+#endif // defined(__AVX__) && defined(__AVX2__)
   static void sha3_b1600_theta_x86(sha3_ctx* ctx)
   {
 #if defined(__AVX__) && defined(__AVX2__) // TODO: ADD SHA_NO_SIMD_AVX
@@ -1763,14 +1771,14 @@ extern "C" {
 #endif                                    // SHA_IS_X86
   static void sha3_b1600_theta(sha3_ctx* ctx)
   {
-    // TODO: Runtime Check for intrinsics
+    // TODO: Runtime Check for intrinsics?
 #ifdef SHA_NO_SIMD
     sha3_b1600_theta_base(ctx);
-#elif SHA_IS_X86 // SHA_NO_SIMD
+#elif defined(SHA_IS_X86) // SHA_NO_SIMD
     sha3_b1600_theta_x86(ctx);
-#else            // TODO: ARM, ...
+#else                     // TODO: ARM, ...
     sha3_b1600_theta_base(ctx);
-#endif           // SHA_NO_SIMD
+#endif                    // SHA_NO_SIMD
   }
   static void sha3_b1600_rho(sha3_ctx* ctx)
   {
@@ -1811,6 +1819,7 @@ extern "C" {
     }
   }
 #if !defined(SHA_NO_SIMD) && defined(SHA_IS_X86)
+#if defined(__SSE2__)
   static void sha3_b1600_chi_x86_mm_(sha3_ctx* ctx)
   {
     sha3_state_t s_copy        = ctx->state;
@@ -1839,6 +1848,8 @@ extern "C" {
       SHA3_STATE_TO_SA(bytes, 4, y) = SHA_XOR(64, SHA3_STATE_TO_SA(s_copy.bytes, 4, y), X4);
     }
   }
+#endif // defined(__SSE2__)
+#if defined(__AVX__) && defined(__AVX2__)
   static void sha3_b1600_chi_x86_mm256_(sha3_ctx* ctx)
   {
     sha3_state_t s_copy        = ctx->state;
@@ -1861,6 +1872,7 @@ extern "C" {
       SHA3_STATE_TO_SA(bytes, 4, y) = SHA_XOR(64, SHA3_STATE_TO_SA(s_copy.bytes, 4, y), X4);
     }
   }
+#endif // defined(__AVX__) && defined(__AVX2__)
   static void sha3_b1600_chi_x86(sha3_ctx* ctx)
   {
 #if defined(__AVX__) && defined(__AVX2__) // TODO: ADD SHA_NO_SIMD_AVX
