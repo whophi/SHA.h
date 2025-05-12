@@ -9,7 +9,7 @@ shake_sizes = ['128', '256']
 PRINT_SUCCESS: bool = False
 
 
-def sha_test_dir(dir: str, prepend: str, sizes, is_shake: bool = False):
+def sha_test_dir(exe: str, dir: str, prepend: str, sizes, is_shake: bool = False):
   for alg in sizes:
     for format in formats_per_test:
       file = open(dir + prepend + alg + format + '.rsp')
@@ -28,12 +28,12 @@ def sha_test_dir(dir: str, prepend: str, sizes, is_shake: bool = False):
           continue
 
         alg_str: str = ('shake_' if is_shake else '') + alg
-        if PRINT_SUCCESS: print('Running: ./test.exe %s %d %s -- ' % (alg_str, len, msg), end='')
-        result = subprocess.run(['./test.exe', alg_str, str(len), msg], stdout=subprocess.PIPE)
+        if PRINT_SUCCESS: print('Running: %s %s %d %s -- ' % (exe, alg_str, len, msg), end='')
+        result = subprocess.run([exe, alg_str, str(len), msg], stdout=subprocess.PIPE)
         result_md = result.stdout.decode('utf-8').strip()
         if(result_md != md): 
           if not PRINT_SUCCESS:
-            print('Running: ./test.exe %s %d %s -- ' % (alg_str, len, msg), end='')
+            print('Running: %s %s %d %s -- ' % (exe, alg_str, len, msg), end='')
           print('Failed:', alg_str, format)
           print('\t len =', len)
           print('\t msg =', msg)
@@ -43,7 +43,7 @@ def sha_test_dir(dir: str, prepend: str, sizes, is_shake: bool = False):
         elif PRINT_SUCCESS:
           print('Success:', alg_str, format)
 
-def shake_test_vo_dir(dir: str, sizes):
+def shake_test_vo_dir(exe: str, dir: str, sizes):
   for alg in sizes:
     for format in formats_per_test:
       file = open(dir + 'SHAKE' + alg + 'VariableOut' + '.rsp')
@@ -63,12 +63,12 @@ def shake_test_vo_dir(dir: str, sizes):
         md: str = file.readline().split(' = ')[1].strip()
 
         alg_str: str = 'shake_' + alg
-        if PRINT_SUCCESS: print('Running: ./test.exe %s %d %s %s -- ' % (alg_str, len, msg, out_len), end='')
-        result = subprocess.run(['./test.exe', alg_str, str(len), msg, out_len], stdout=subprocess.PIPE)
+        if PRINT_SUCCESS: print('Running: %s %s %d %s %s -- ' % (exe, alg_str, len, msg, out_len), end='')
+        result = subprocess.run([exe, alg_str, str(len), msg, out_len], stdout=subprocess.PIPE)
         result_md = result.stdout.decode('utf-8').strip()
         if(result_md != md):
           if not PRINT_SUCCESS:
-            print('Running: ./test.exe %s %d %s %s -- ' % (alg_str, len, msg, out_len), end='')
+            print('Running: %s %s %d %s %s -- ' % (exe, alg_str, len, msg, out_len), end='')
           print('Failed:', alg_str, format)
           print('\t len =', len)
           print('\t msg =', msg)
@@ -79,15 +79,28 @@ def shake_test_vo_dir(dir: str, sizes):
         elif PRINT_SUCCESS:
           print('Success:', alg, format)
 
-print("Testing SHA1/2")
-sha_test_dir('./data/nist/sha1_2_bits/', 'SHA', sha_sizes_1_2)
-sha_test_dir('./data/nist/sha1_2_bytes/', 'SHA', sha_sizes_1_2)
-print("Testing SHA3")
-sha_test_dir('./data/nist/sha3_bits/', 'SHA', sha_sizes_3)
-sha_test_dir('./data/nist/sha3_bytes/', 'SHA', sha_sizes_3)
-print("Testing Shake msg size")
-sha_test_dir('./data/nist/shake_bits/', 'SHAKE', shake_sizes, True)
-sha_test_dir('./data/nist/shake_bytes/', 'SHAKE', shake_sizes, True)
-print("Testing Shake out size")
-shake_test_vo_dir('./data/nist/shake_bits/', shake_sizes)
-shake_test_vo_dir('./data/nist/shake_bytes/', shake_sizes)
+
+make_run = subprocess.run(['make', '-B'])
+if make_run.returncode != 0:
+  print("Failed to compile tests.")
+  exit(1)
+exes = ['./test.exe', './test_no_simd.exe']
+
+for exe in exes:
+  print("Testing:", exe)
+  print("\tSHA1/2 ", end='', flush=True)
+  sha_test_dir(exe, './data/nist/sha1_2_bits/', 'SHA', sha_sizes_1_2)
+  sha_test_dir(exe, './data/nist/sha1_2_bytes/', 'SHA', sha_sizes_1_2)
+  print('-- Success')
+  print("\tTesting SHA3 ", end='', flush=True)
+  sha_test_dir(exe, './data/nist/sha3_bits/', 'SHA', sha_sizes_3)
+  sha_test_dir(exe, './data/nist/sha3_bytes/', 'SHA', sha_sizes_3)
+  print('-- Success')
+  print("\tTesting Shake msg size ", end='', flush=True)
+  sha_test_dir(exe, './data/nist/shake_bits/', 'SHAKE', shake_sizes, True)
+  sha_test_dir(exe, './data/nist/shake_bytes/', 'SHAKE', shake_sizes, True)
+  print('-- Success')
+  print("\tTesting Shake out size ", end='', flush=True)
+  shake_test_vo_dir(exe, './data/nist/shake_bits/', shake_sizes)
+  shake_test_vo_dir(exe, './data/nist/shake_bytes/', shake_sizes)
+  print('-- Success')
