@@ -1065,26 +1065,6 @@ extern "C" {
   }
 
   // SHA 2
-  static void _sha2_print_m128i(__m128i v)
-  {
-    printf("%02x ", _mm_extract_epi8(v, 0));
-    printf("%02x ", _mm_extract_epi8(v, 1));
-    printf("%02x ", _mm_extract_epi8(v, 2));
-    printf("%02x ", _mm_extract_epi8(v, 3));
-    printf("%02x ", _mm_extract_epi8(v, 4));
-    printf("%02x ", _mm_extract_epi8(v, 5));
-    printf("%02x ", _mm_extract_epi8(v, 6));
-    printf("%02x ", _mm_extract_epi8(v, 7));
-    printf("%02x ", _mm_extract_epi8(v, 8));
-    printf("%02x ", _mm_extract_epi8(v, 9));
-    printf("%02x ", _mm_extract_epi8(v, 10));
-    printf("%02x ", _mm_extract_epi8(v, 11));
-    printf("%02x ", _mm_extract_epi8(v, 12));
-    printf("%02x ", _mm_extract_epi8(v, 13));
-    printf("%02x ", _mm_extract_epi8(v, 14));
-    printf("%02x ", _mm_extract_epi8(v, 15));
-    printf("\n");
-  }
   static void _sha2_256_hash_block_base(sha2_256_ctx* ctx, sha2_block_256_t* block_optional)
   {
     SHA_WORD_TYPE(SHA2_256) W[64];
