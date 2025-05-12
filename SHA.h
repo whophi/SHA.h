@@ -1,10 +1,23 @@
 /*
-  SHA.h - v0.1 - Phil Wihler 2025
+  SHA.h - v0.1.0 - https://github.com/Voidler-cell/SHA
 
   Single-header-library that provides all sha functions (1,2,3) in a single library.
 
+  AUTHORS:
+    - Phil Wihler 2025
+
   SPECIFICATION:
-    - https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
+    - SHA 1/2: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
+    - SHA 3: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
+
+  TESTS:
+    - https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/secure-hashing
+    - https://csrc.nist.gov/projects/cryptographic-standards-and-guidelines/example-values
+
+  TODO:
+    - Implement official tests
+    - Add support for simd other then x86
+    - Test sha512 intrinsic implementation
 
   COMPILE-TIME OPTIONS
 
