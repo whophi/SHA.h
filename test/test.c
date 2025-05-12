@@ -2,7 +2,7 @@
 #include <time.h>
 
 #define SHA_IMPLEMENTATION
-#include "../SHA.h"
+#include "../sha.h"
 
 void endianCheckPrint()
 {
@@ -19,7 +19,7 @@ int main(int argc, char** argv)
   //
   // endianCheckPrint();
   //
-  size_t       index    = 1;
+  unsigned int index    = 1;
   const char*  sha_size = argv[index++];
   uint64_t     len      = atoll(argv[index++]);
   const char*  msg      = argv[index++];
@@ -158,26 +158,6 @@ int main(int argc, char** argv)
   } else {
     printf("Unknown sha size %s\n", sha_size);
   }
-  // sha_256_t   hash_pow;
-  // sha2_256_ctx sha2_pow_ctx;
-  // sha2_256_reset(&sha2_pow_ctx);
-  // printf(" ");
-  // fflush(stdout);
-  // for (size_t i = 0; i < UINT32_MAX; i++) {
-  //   // srand(i);
-  //   time_t t     = time(NULL);
-  //   int    value = i; // rand() * rand();
-  //   printf("\rTrying: %lld %d   ", t, value);
-  //   fflush(stdout);
-  //   // sha2_256_append_bytes(&sha2_pow_ctx, (uint8_t*)&t, sizeof(t));
-  //   sha2_256_append_bytes(&sha2_pow_ctx, (uint8_t*)&value, sizeof(value));
-  //   hash_pow = sha2_256_get_hash(&sha2_pow_ctx);
-  //   // for (size_t i = 0; i < sizeof(hash_pow.words) / sizeof(*hash_pow.words); i++) { printf("%08x", hash_pow.words[i]); }
-  //   if ((hash_pow.words[0] & 0xFFFF0000) == 0) break;
-  // }
-  // // printf("\n");
-  // for (size_t i = 0; i < sizeof(hash_pow.words) / sizeof(*hash_pow.words); i++) { printf("%08x", hash_pow.words[i]); }
-  // printf("\n");
 
   return 0;
 }
