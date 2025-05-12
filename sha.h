@@ -2490,9 +2490,13 @@ extern "C" {
   static void sha3_pad10_star_1(sha3_ctx* ctx, unsigned short leftover_bits)
   {
     sha3_append_bits(ctx, &ONE_READ_ONLY, 1);
-    long           v   = -leftover_bits - 2;
-    unsigned short mod = (v % ctx->r + ctx->r) % ctx->r; // Actual modulo, not remainder %
-    sha3_append_bits(ctx, ZERO_READ_ONLY, mod);          // (-m - 2) mod ctx->r
+    long           v               = -leftover_bits - 2;
+    unsigned short mod             = (v % ctx->r + ctx->r) % ctx->r; // Actual modulo, not remainder %
+    unsigned short bits_until_byte = 8 - (ctx->bit_count % 8);
+    unsigned short bits_zero       = SHA_MIN(mod, bits_until_byte);
+    sha3_append_bits(ctx, ZERO_READ_ONLY, bits_zero);
+    mod -= bits_zero;
+    if (mod > 0) sha3_append_bits(ctx, ZERO_READ_ONLY, mod); // (-m - 2) mod ctx->r
     sha3_append_bits(ctx, &ONE_READ_ONLY, 1);
     SHA_ASSERT(ctx->bit_count == 0, "Expected ctx bit count to be 0 (sponged)");
   }
