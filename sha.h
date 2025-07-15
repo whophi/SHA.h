@@ -54,6 +54,7 @@
     #define SHA_NO_SIMD
       Prevents the use of <immintrin.h> and thereby the use of any intrinsics
       This makes it slower, as it will use a normal c implementation instead of the sha intrinsics.
+      TODO: Create separate flag for sha1, sha2_256, sha2_512, sha3?
       Used extensions are:
         x86: __SSE2__, __SSE3__, __SSE4_1__, __SSE4_2__ and __SHA__
         arm: NOT IMPLEMENTED
@@ -1533,7 +1534,8 @@ extern "C" {
       (ctx->hash.words[6] = g + ctx->hash.words[6], ctx->hash.words[7] = h + ctx->hash.words[7]);
     }
   }
-#if !defined(SHA_NO_SIMD) && defined(SHA_IS_X86) && defined(__AVX2__) && defined(__AVX__) && defined(__SHA512__)
+#if !defined(SHA_NO_SIMD) && defined(SHA_IS_X86) && defined(__SSE3__) && defined(__AVX2__) && defined(__AVX__) && \
+    defined(__SHA512__)
   static void _sha2_512_hash_block_x86_mm256(sha2_512_ctx_t* ctx, sha2_block_512_t* block_optional)
   {
     sha2_block_512_t* block = block_optional == NULL ? &ctx->block : block_optional;

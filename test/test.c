@@ -48,21 +48,21 @@ int main(int argc, char** argv)
     sha1_append_bits(&ctx, msg_v, len);
     sha1_t hash;
     sha1_get_hash(&ctx, hash.words);
-    printf("%s\n", sha1_words_to_string(hash.words, upper_case));
+    printf("%s\n", sha1_words_to_string_static(hash.words, upper_case));
   } else if (strcmp(sha_size, "224") == 0) {
     sha2_256_ctx_t sha2_ctx;
     sha2_224_reset(&sha2_ctx);
     sha2_256_append_bits(&sha2_ctx, msg_v, len);
     sha_224_t hash;
     sha2_224_get_hash(&sha2_ctx, hash.words);
-    printf("%s\n", sha_224_words_to_string(hash.words, upper_case));
+    printf("%s\n", sha_224_words_to_string_static(hash.words, upper_case));
   } else if (strcmp(sha_size, "256") == 0) {
     sha2_256_ctx_t sha2_ctx;
     sha2_256_reset(&sha2_ctx);
     sha2_256_append_bits(&sha2_ctx, msg_v, len);
     sha_256_t hash;
     sha2_256_get_hash(&sha2_ctx, hash.words);
-    printf("%s\n", sha_256_words_to_string(hash.words, upper_case));
+    printf("%s\n", sha_256_words_to_string_static(hash.words, upper_case));
     // printf("%02x", *((uint8_t*)&hash.words[0]));
   } else if (strcmp(sha_size, "384") == 0) {
     sha2_512_ctx_t sha2_ctx;
@@ -70,28 +70,28 @@ int main(int argc, char** argv)
     sha2_512_append_bits(&sha2_ctx, msg_v, len);
     sha_384_t hash;
     sha2_384_get_hash(&sha2_ctx, hash.words);
-    printf("%s\n", sha_384_words_to_string(hash.words, upper_case));
+    printf("%s\n", sha_384_words_to_string_static(hash.words, upper_case));
   } else if (strcmp(sha_size, "512") == 0) {
     sha2_512_ctx_t sha2_ctx;
     sha2_512_reset(&sha2_ctx);
     sha2_512_append_bits(&sha2_ctx, msg_v, len);
     sha_512_t hash;
     sha2_512_get_hash(&sha2_ctx, hash.words);
-    printf("%s\n", sha_512_words_to_string(hash.words, upper_case));
+    printf("%s\n", sha_512_words_to_string_static(hash.words, upper_case));
   } else if (strcmp(sha_size, "512_224") == 0) {
     sha2_512_ctx_t sha2_ctx;
     sha2_512_224_reset(&sha2_ctx);
     sha2_512_append_bits(&sha2_ctx, msg_v, len);
     sha_224_t hash;
     sha2_512_224_get_hash(&sha2_ctx, hash.words);
-    printf("%s\n", sha_224_words_to_string(hash.words, upper_case));
+    printf("%s\n", sha_224_words_to_string_static(hash.words, upper_case));
   } else if (strcmp(sha_size, "512_256") == 0) {
     sha2_512_ctx_t sha2_ctx;
     sha2_512_256_reset(&sha2_ctx);
     sha2_512_append_bits(&sha2_ctx, msg_v, len);
     sha_256_t hash;
     sha2_512_256_get_hash(&sha2_ctx, hash.words);
-    printf("%s\n", sha_256_words_to_string(hash.words, upper_case));
+    printf("%s\n", sha_256_words_to_string_static(hash.words, upper_case));
   } else if (strcmp(sha_size, "3_224") == 0) {
     sha3_ctx_t sha3_ctx_t;
     sha3_224_reset(&sha3_ctx_t);
@@ -101,28 +101,28 @@ int main(int argc, char** argv)
     // char buf[224 / 8 * 2 + 1];
     // sha_bytes_to_string(buf, hash.bytes, 224 / 8, upper_case);
     // printf("%s\n", buf);
-    printf("%s\n", sha_224_bytes_to_string(hash.bytes, upper_case));
+    printf("%s\n", sha_224_bytes_to_string_static(hash.bytes, upper_case));
   } else if (strcmp(sha_size, "3_256") == 0) {
     sha3_ctx_t sha3_ctx_t;
     sha3_256_reset(&sha3_ctx_t);
     sha3_append_bits(&sha3_ctx_t, msg_v, len);
     sha_256_t hash;
     sha3_256_get_hash(&sha3_ctx_t, hash.bytes);
-    printf("%s\n", sha_256_bytes_to_string(hash.bytes, upper_case));
+    printf("%s\n", sha_256_bytes_to_string_static(hash.bytes, upper_case));
   } else if (strcmp(sha_size, "3_384") == 0) {
     sha3_ctx_t sha3_ctx_t;
     sha3_384_reset(&sha3_ctx_t);
     sha3_append_bits(&sha3_ctx_t, msg_v, len);
     sha_384_t hash;
     sha3_384_get_hash(&sha3_ctx_t, hash.bytes);
-    printf("%s\n", sha_384_bytes_to_string(hash.bytes, upper_case));
+    printf("%s\n", sha_384_bytes_to_string_static(hash.bytes, upper_case));
   } else if (strcmp(sha_size, "3_512") == 0) {
     sha3_ctx_t sha3_ctx_t;
     sha3_512_reset(&sha3_ctx_t);
     sha3_append_bits(&sha3_ctx_t, msg_v, len);
     sha_512_t hash;
     sha3_512_get_hash(&sha3_ctx_t, hash.bytes);
-    printf("%s\n", sha_512_bytes_to_string(hash.bytes, upper_case));
+    printf("%s\n", sha_512_bytes_to_string_static(hash.bytes, upper_case));
   } else if (strcmp(sha_size, "shake_128") == 0) {
     unsigned int hash_bit_count = 128;
     if (index < argc) hash_bit_count = atoll(argv[index++]);
