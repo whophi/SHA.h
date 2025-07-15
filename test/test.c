@@ -125,7 +125,7 @@ int main(int argc, char** argv)
     printf("%s\n", sha_512_bytes_to_string_static(hash.bytes, upper_case));
   } else if (strcmp(sha_size, "shake_128") == 0) {
     unsigned int hash_bit_count = 128;
-    if (index < argc) hash_bit_count = atoll(argv[index++]);
+    if (index < (unsigned int)argc) hash_bit_count = atoll(argv[index++]);
     sha3_ctx_t sha3_ctx_t;
     sha3_shake128_reset(&sha3_ctx_t, hash_bit_count);
     sha3_append_bits(&sha3_ctx_t, msg_v, len);
@@ -141,7 +141,7 @@ int main(int argc, char** argv)
     printf("\n");
   } else if (strcmp(sha_size, "shake_256") == 0) {
     unsigned int hash_bit_count = 256;
-    if (index < argc) hash_bit_count = atoll(argv[index++]);
+    if (index < (unsigned int)argc) hash_bit_count = atoll(argv[index++]);
     sha3_ctx_t sha3_ctx_t;
     sha3_shake256_reset(&sha3_ctx_t, hash_bit_count);
     sha3_append_bits(&sha3_ctx_t, msg_v, len);
