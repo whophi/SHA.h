@@ -4,7 +4,7 @@ Single-header-library that provides all sha functions (1,2,3) in a single librar
 
 ## Header only library
 
-SHA implementation as a header only library, based on the format introduced by nothings/stb
+SHA implementation as a header only library, based on the format introduced by [nothings/stb](https://github.com/nothings/stb)
 
 For declarations:
 
@@ -59,3 +59,7 @@ sha1| SSE2, SSE3, SSE4.1, SHA | not implemented
 sha2_224/256| SSE2, SSE3, SSE4.1, SHA | not implemented
 sha2_384/512| SSE3, AVX2, AVX, SHA512 | not implemented
 sha3| SSE2 or AVX, AVX2 | not implemented
+
+## Other Options
+
+Other compile time options are listed in the sha.h file.

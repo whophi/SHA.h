@@ -59,10 +59,6 @@
         x86: __SSE2__, __SSE3__, __SSE4_1__, __SSE4_2__ and __SHA__
         arm: NOT IMPLEMENTED
 
-    #define SHA_NO_RUNTIME_INTRINSICS (NOT IMPLEMENTED)
-      Prevents the test for available intrinsics at runtime
-      // TODO: Implement testing for intrinsics at runtime
-
     #define SHA_IS_X86
       Sets the architecture to be x86 32 or 64 bit.
       The defaults is checking for compiler defined macros like __i386__.
