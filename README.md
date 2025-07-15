@@ -6,6 +6,19 @@ Single-header-library that provides all sha functions (1,2,3) in a single librar
 
 SHA implementation as a header only library, based on the format introduced by nothings/stb
 
+For declarations:
+
+```C
+#include "sha.h"
+```
+
+For declarations & definitions:
+
+```C
+#define SHA_IMPLEMENTATION
+#include "sha.h"
+```
+
 ## Specification
 
 - SHA 1/2: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
