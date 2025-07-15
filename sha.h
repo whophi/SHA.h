@@ -151,10 +151,25 @@ static_assert("SHA_MEMCPY not defined without string.h");
 // SIMD
 #ifndef SHA_NO_SIMD
 #include <immintrin.h>
-#define SHA_IS_X86_32 defined(i386) || defined(__i386__) || defined(__i386) || defined(_M_IX86)
-#define SHA_IS_X86_64 defined(__x86_64__) || defined(_M_X64)
+
+#if defined(i386) || defined(__i386__) || defined(__i386) || defined(_M_IX86)
+#define SHA_IS_X86_32 1
+#else  // SHA_IS_X86_32
+#define SHA_IS_X86_32 0
+#endif // SHA_IS_X86_32
+
+#if defined(__x86_64__) || defined(_M_X64)
+#define SHA_IS_X86_64 1
+#else  // SHA_IS_X86_64
+#define SHA_IS_X86_64 0
+#endif // SHA_IS_X86_64
+
 #ifndef SHA_IS_X86
-#define SHA_IS_X86 (SHA_IS_X86_32 || SHA_IS_X86_64)
+#if SHA_IS_X86_32 || SHA_IS_X86_64
+#define SHA_IS_X86 1
+#else
+#define SHA_IS_X86 0
+#endif
 #endif // SHA_IS_X86
 #endif // SHA_NO_SIMD
 
@@ -1949,12 +1964,12 @@ extern "C" {
 #define _SHA_MOD(WS, x, n)          _SHA_MOD_##WS(x, n)
 #define SHA_MOD(WS, x, n)           _SHA_MOD(WS, x, n)
 
-  static void sha3_print_state(sha3_ctx_t* ctx, int round_index, const char* str)
-  {
-    printf("After round %u: %s\n", round_index, str);
-    for (unsigned long i = 0; i < sizeof(ctx->state); i++) { printf("%02x ", ctx->state.bytes[i]); }
-    printf("\n");
-  }
+  // static void sha3_print_state(sha3_ctx_t* ctx, int round_index, const char* str)
+  // {
+  //   printf("After round %u: %s\n", round_index, str);
+  //   for (unsigned long i = 0; i < sizeof(ctx->state); i++) { printf("%02x ", ctx->state.bytes[i]); }
+  //   printf("\n");
+  // }
 
   static void sha3_b1600_theta_base(sha3_ctx_t* ctx)
   {
@@ -2269,32 +2284,6 @@ extern "C" {
     // sha3_rnd(ctx, 0);
     for (unsigned short i = 12 + 2 * SHA3_b1600_L - 24; i < 12 + 2 * SHA3_b1600_L; i++) { sha3_rnd(ctx, i); }
   }
-  static SHA_WORD_TYPE_WS(8) sha3_reverse_bits_in_byte(SHA_WORD_TYPE_WS(8) b)
-  {
-    b = (b & 0b11110000) >> 4 | (b & 0b00001111) << 4;
-    b = (b & 0b11001100) >> 2 | (b & 0b00110011) << 2;
-    b = (b & 0b10101010) >> 1 | (b & 0b01010101) << 1;
-    return b;
-  }
-  static void sha3_print_data(const SHA_WORD_TYPE_WS(8) * data, unsigned long count, const char* str)
-  {
-    printf("%s:\n", str);
-    for (unsigned long i = 0; i < count; i++) {
-      // const  SHA_WORD_TYPE_WS(64) v = data[i];
-      const SHA_WORD_TYPE_WS(64) v = sha3_reverse_bits_in_byte(data[i]);
-      printf("%02x ", v);
-    }
-    // #define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
-    // #define BYTE_TO_BINARY(byte)                                                                                          \
-//   ((byte) & 0x80 ? '1' : '0'), ((byte) & 0x40 ? '1' : '0'), ((byte) & 0x20 ? '1' : '0'), ((byte) & 0x10 ? '1' : '0'), \
-//       ((byte) & 0x08 ? '1' : '0'), ((byte) & 0x04 ? '1' : '0'), ((byte) & 0x02 ? '1' : '0'), ((byte) & 0x01 ? '1' : '0')
-    //     for (unsigned int i = 0; i < count; i++) {
-    //       // const SHA_WORD_TYPE_WS(8) rev = sha3_reverse_bits_in_byte(data[i]);
-    //       const SHA_WORD_TYPE_WS(8) rev = data[i];
-    //       printf(BYTE_TO_BINARY_PATTERN " ", BYTE_TO_BINARY(rev));
-    //     }
-    printf("\n");
-  }
   static void sha3_sponge(sha3_ctx_t* ctx, const SHA_WORD_TYPE_WS(8) * opt_data)
   {
     const SHA_WORD_TYPE_WS(8)* data = opt_data != NULL ? opt_data : ctx->pi.bytes;
@@ -2406,7 +2395,7 @@ extern "C" {
     }
 
     while (bit_count > 0) {
-      const SHA_WORD_TYPE_WS(8) data_byte   = *(data++); // sha3_reverse_bits_in_byte
+      const SHA_WORD_TYPE_WS(8) data_byte   = *(data++);
       const size_t byte_index               = ctx->bit_count / 8;
       SHA_WORD_TYPE_WS(8)* py_byte          = &ctx->pi.bytes[byte_index];
       const unsigned char bits_in_byte      = ctx->bit_count - (byte_index * 8);
@@ -2421,7 +2410,6 @@ extern "C" {
       ctx->bit_count                            += added_bit_count;
 
       // Sponge block if added last bit
-      size_t byte_index_next = byte_index + 1;
       if (ctx->bit_count >= ctx->r) {
         sha3_sponge(ctx, NULL);
         py_byte = &ctx->pi.bytes[0];
