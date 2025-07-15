@@ -80,10 +80,10 @@ def shake_test_vo_dir(exe: str, dir: str, sizes):
           print('Success:', alg, format)
 
 
-make_run = subprocess.run(['make', '-B'])
-if make_run.returncode != 0:
-  print("Failed to compile tests.")
-  exit(1)
+# make_run = subprocess.run(['make', '-B'])
+# if make_run.returncode != 0:
+#   print("Failed to compile tests.")
+#   exit(1)
 exes = ['./test.exe', './test_no_simd.exe']
 
 for exe in exes:

@@ -37,7 +37,7 @@ NOTE: Will build a executable, that allows running every sha, via command line a
 
 ```batch
 cd ./test
-python ./tests.py
+make
 ```
 
 ## SIMD Support
